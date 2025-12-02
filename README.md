@@ -50,6 +50,26 @@ Our first sprint delivers the foundation:
 
 ---
 
+## 📸 Screenshots
+
+<div align="center">
+
+### Experience GitArena's Modern Interface
+
+````carousel
+![Login Page - Secure GitHub OAuth authentication](C:/Users/efrat/.gemini/antigravity/brain/c7a5b328-07a1-4411-a6be-eb1b18116977/login_page_screenshot_1764702727603.png)
+<!-- slide -->
+![Dashboard - Comprehensive analytics at a glance](C:/Users/efrat/.gemini/antigravity/brain/c7a5b328-07a1-4411-a6be-eb1b18116977/dashboard_screenshot_1764702750071.png)
+<!-- slide -->
+![Repositories - Manage and sync your GitHub repos](C:/Users/efrat/.gemini/antigravity/brain/c7a5b328-07a1-4411-a6be-eb1b18116977/repositories_screenshot_1764702773570.png)
+<!-- slide -->
+![Profile - Track your development activity](C:/Users/efrat/.gemini/antigravity/brain/c7a5b328-07a1-4411-a6be-eb1b18116977/profile_screenshot_1764702813440.png)
+````
+
+</div>
+
+---
+
 ## ✨ Features
 
 ### 🔐 Authentication & Security
