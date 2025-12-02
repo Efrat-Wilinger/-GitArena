@@ -1,271 +1,488 @@
-# GitArena
+<div align="center">
 
-GitArena is a GitHub Analytics and AI Platform that helps developers and teams gain insights from their GitHub repositories.
+# 🏟️ GitArena
 
-## 🚀 Sprint 1 Features
+### GitHub Analytics & AI Platform
 
-### Implemented Stories
-- **Story 205**: GitHub OAuth Login with JWT authentication
-- **Story 207**: Repository selection and synchronization from GitHub
-- **Story 210**: Commit pulling and daily sync (cron stub)
-- **Story 212**: Basic user profile page
-- **Story 239**: Docker Compose setup
-- **Story 249**: Git repository initialization
+*Empowering developers and teams with actionable insights from their GitHub repositories*
 
-### Dashboard Queries
-- Count tasks by status
-- Count tasks by assignee
-- Count stories in Sprint 1
-- Count commits fetched
-- Count registered users
+[![GitHub](https://img.shields.io/badge/GitHub-Repository-blue?logo=github)](https://github.com/Efrat-Wilinger/-GitArena)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.104-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](https://reactjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+
+[Features](#-features) • [Quick Start](#-quick-start) • [Documentation](#-documentation) • [Team](#-team)
+
+</div>
+
+---
+
+## 📋 Table of Contents
+
+- [About](#-about)
+- [Features](#-features)
+- [Technology Stack](#-technology-stack)
+- [Quick Start](#-quick-start)
+- [Project Structure](#-project-structure)
+- [API Documentation](#-api-documentation)
+- [Development](#-development)
+- [Testing](#-testing)
+- [Contributing](#-contributing)
+- [Team](#-team)
+
+---
+
+## 🎯 About
+
+**GitArena** is a comprehensive GitHub analytics platform that transforms raw repository data into meaningful insights. Built for developers and teams who want to understand their development patterns, improve code quality, and enhance collaboration.
+
+### 🎖️ Sprint 1 - Complete ✅
+
+Our first sprint delivers the foundation:
+
+- ✅ **Story 205**: GitHub OAuth Login with JWT authentication
+- ✅ **Story 207**: Repository selection and synchronization
+- ✅ **Story 210**: Commit pulling and daily sync automation
+- ✅ **Story 212**: User profile management
+- ✅ **Story 239**: Docker Compose infrastructure
+- ✅ **Story 249**: Git repository initialization
+
+---
+
+## ✨ Features
+
+### 🔐 Authentication & Security
+- **GitHub OAuth Integration** - Seamless login with your GitHub account
+- **JWT Authentication** - Secure token-based authentication
+- **Role-Based Access Control** - Manage team permissions
+
+### 📊 Analytics Dashboard
+- **Repository Insights** - Track commits, PRs, and code changes
+- **Team Metrics** - Understand collaboration patterns
+- **Activity Tracking** - Monitor development velocity
+- **Visual Reports** - Beautiful charts and graphs
+
+### 🤖 AI-Powered Features *(Coming Soon)*
+- Code review suggestions
+- Pattern detection
+- Quality recommendations
+
+### 🔄 Synchronization
+- **Automatic Sync** - Daily repository updates
+- **On-Demand Refresh** - Manual sync when needed
+- **Webhook Support** *(Planned)*
+
+---
+
+## 🛠️ Technology Stack
+
+<table>
+<tr>
+<td width="50%">
+
+### Backend
+- ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white) **FastAPI** - Modern, fast web framework
+- ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Latest-4169E1?logo=postgresql&logoColor=white) **PostgreSQL** - Robust database
+- ![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-ORM-red) **SQLAlchemy** - Powerful ORM
+- ![Alembic](https://img.shields.io/badge/Alembic-Migrations-orange) **Alembic** - Database migrations
+- ![JWT](https://img.shields.io/badge/JWT-Auth-000000?logo=jsonwebtokens) **JWT** - Secure authentication
+
+</td>
+<td width="50%">
+
+### Frontend
+- ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black) **React 18** - UI framework
+- ![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6?logo=typescript&logoColor=white) **TypeScript** - Type safety
+- ![Vite](https://img.shields.io/badge/Vite-Latest-646CFF?logo=vite&logoColor=white) **Vite** - Lightning-fast builds
+- ![TailwindCSS](https://img.shields.io/badge/Tailwind-CSS-06B6D4?logo=tailwindcss&logoColor=white) **TailwindCSS** - Utility-first styling
+- ![Recharts](https://img.shields.io/badge/Recharts-Visualization-8884d8) **Recharts** - Data visualization
+
+</td>
+</tr>
+</table>
+
+### DevOps & Tools
+- 🐳 **Docker & Docker Compose** - Containerization
+- 🔄 **GitHub Actions** - CI/CD pipeline
+- 🧪 **pytest** - Backend testing
+- 📦 **npm** - Package management
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+Before you begin, ensure you have:
+- ✅ [Docker](https://www.docker.com/get-started) and Docker Compose installed
+- ✅ A GitHub account
+- ✅ GitHub OAuth App credentials (see setup below)
+
+### 1️⃣ Setup GitHub OAuth App
+
+1. Navigate to [GitHub Developer Settings](https://github.com/settings/developers)
+2. Click **"New OAuth App"**
+3. Fill in the details:
+   ```
+   Application name: GitArena
+   Homepage URL: http://localhost:3000
+   Authorization callback URL: http://localhost:3000/auth/callback
+   ```
+4. Click **"Register application"**
+5. Copy your **Client ID** and generate a **Client Secret**
+
+### 2️⃣ Clone & Configure
+
+```bash
+# Clone the repository
+git clone https://github.com/Efrat-Wilinger/-GitArena.git
+cd -GitArena
+
+# Copy environment template
+cp .env.example .env
+```
+
+### 3️⃣ Configure Environment
+
+Edit `.env` and add your credentials:
+
+```env
+# GitHub OAuth
+GITHUB_CLIENT_ID=your_github_client_id
+GITHUB_CLIENT_SECRET=your_github_client_secret
+
+# Security
+SECRET_KEY=your_super_secret_key_here
+
+# Database
+DATABASE_URL=postgresql://gitarena:gitarena@db:5432/gitarena
+
+# API
+API_URL=http://localhost:8000
+```
+
+### 4️⃣ Launch Application
+
+```bash
+# Start all services
+docker-compose up --build
+
+# Or run in detached mode
+docker-compose up -d --build
+```
+
+### 5️⃣ Access the Application
+
+| Service | URL | Description |
+|---------|-----|-------------|
+| 🌐 **Frontend** | http://localhost:3000 | Main application |
+| 🔧 **Backend API** | http://localhost:8000 | REST API |
+| 📚 **API Docs** | http://localhost:8000/docs | Interactive API documentation |
+| 🗄️ **Database** | localhost:5432 | PostgreSQL (internal) |
+
+---
 
 ## 📁 Project Structure
 
 ```
 GitArena/
-├── backend/
+│
+├── 🔙 backend/                    # Python FastAPI Backend
 │   ├── app/
 │   │   ├── modules/
-│   │   │   ├── github/         # GitHub integration
-│   │   │   │   ├── controller.py
-│   │   │   │   ├── service.py
-│   │   │   │   ├── repository.py
-│   │   │   │   └── dto.py
-│   │   │   ├── users/          # User management
-│   │   │   │   ├── controller.py
-│   │   │   │   ├── auth_controller.py
-│   │   │   │   ├── service.py
-│   │   │   │   ├── repository.py
-│   │   │   │   └── dto.py
-│   │   │   ├── analytics/      # Analytics & dashboard
-│   │   │   │   ├── controller.py
-│   │   │   │   ├── service.py
-│   │   │   │   ├── repository.py
-│   │   │   │   └── dto.py
-│   │   │   └── ai/             # AI features (placeholder)
-│   │   │       ├── controller.py
-│   │   │       ├── service.py
-│   │   │       ├── repository.py
-│   │   │       └── dto.py
+│   │   │   ├── github/           # GitHub integration & sync
+│   │   │   ├── users/            # User management & auth
+│   │   │   ├── analytics/        # Analytics & dashboards
+│   │   │   ├── spaces/           # Team spaces
+│   │   │   └── ai/               # AI features (placeholder)
 │   │   ├── shared/
-│   │   │   ├── database.py     # Database connection
-│   │   │   ├── models.py       # SQLAlchemy models
-│   │   │   ├── security.py     # JWT & auth utilities
-│   │   │   ├── exceptions.py   # Custom exceptions
-│   │   │   └── middleware.py   # Error handling
+│   │   │   ├── database.py       # DB connection
+│   │   │   ├── models.py         # SQLAlchemy models
+│   │   │   ├── security.py       # JWT & auth utilities
+│   │   │   └── middleware.py     # Error handling
 │   │   ├── config/
-│   │   │   └── settings.py     # Configuration
-│   │   └── main.py             # FastAPI application
-│   ├── migrations/             # Alembic migrations
+│   │   │   └── settings.py       # Configuration
+│   │   └── main.py               # FastAPI app entry
+│   ├── migrations/               # Alembic migrations
 │   ├── devops/
-│   │   └── cron_sync.py        # Daily sync job (stub)
-│   ├── tests/
-│   │   └── test_main.py        # Unit tests
+│   │   └── cron_sync.py          # Daily sync job
+│   ├── tests/                    # Unit tests
 │   ├── requirements.txt
-│   ├── Dockerfile
-│   └── .env.example
-├── frontend/
+│   └── Dockerfile
+│
+├── 🎨 frontend/                   # React TypeScript Frontend
 │   ├── src/
-│   │   ├── api/                # API client
-│   │   │   ├── client.ts
-│   │   │   ├── auth.ts
-│   │   │   └── github.ts
-│   │   ├── components/
-│   │   │   └── Layout.tsx
-│   │   ├── pages/
+│   │   ├── api/                  # API client layer
+│   │   ├── components/           # Reusable components
+│   │   ├── pages/                # Page components
 │   │   │   ├── LoginPage.tsx
-│   │   │   ├── CallbackPage.tsx
 │   │   │   ├── ProfilePage.tsx
 │   │   │   ├── RepositoriesPage.tsx
 │   │   │   └── CommitsPage.tsx
 │   │   ├── App.tsx
-│   │   ├── main.tsx
-│   │   └── index.css
+│   │   └── main.tsx
 │   ├── package.json
 │   ├── vite.config.ts
 │   ├── tailwind.config.js
-│   ├── Dockerfile
-│   └── nginx.conf
-├── .github/
+│   └── Dockerfile
+│
+├── 🔄 .github/
 │   └── workflows/
-│       └── ci.yml              # GitHub Actions CI
-├── docker-compose.yml
-├── .env.example
-└── README.md
+│       └── ci.yml                # GitHub Actions CI
+│
+├── 🐳 docker-compose.yml         # Docker orchestration
+└── 📖 README.md                  # You are here!
 ```
 
-## 🛠️ Technology Stack
+---
 
-### Backend
-- **Framework**: FastAPI (Python 3.12)
-- **ORM**: SQLAlchemy
-- **Database**: PostgreSQL
-- **Migrations**: Alembic
-- **Authentication**: JWT (python-jose)
-- **Testing**: pytest
+## 📚 API Documentation
 
-### Frontend
-- **Framework**: React 18
-- **Build Tool**: Vite
-- **Language**: TypeScript
-- **Styling**: TailwindCSS
-- **State Management**: React Query
-- **Charts**: Recharts
-- **HTTP Client**: Axios
+### 🔐 Authentication
 
-### DevOps
-- **Containerization**: Docker
-- **Orchestration**: Docker Compose
-- **CI/CD**: GitHub Actions
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/auth/github/login` | Initiate GitHub OAuth flow |
+| `GET` | `/auth/github/callback` | OAuth callback handler |
 
-## 🚀 Getting Started
+### 👤 Users
 
-### Prerequisites
-- Docker and Docker Compose
-- GitHub OAuth App credentials
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/users/me` | Get current user profile |
+| `GET` | `/users/{user_id}` | Get user by ID |
 
-### Setup GitHub OAuth App
+### 🐙 GitHub Integration
 
-1. Go to GitHub Settings → Developer settings → OAuth Apps
-2. Create a new OAuth App with:
-   - **Application name**: GitArena
-   - **Homepage URL**: `http://localhost:3000`
-   - **Authorization callback URL**: `http://localhost:3000/auth/callback`
-3. Copy the Client ID and Client Secret
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/github/repos` | List user repositories |
+| `POST` | `/github/repos/sync` | Sync repositories from GitHub |
+| `GET` | `/github/repos/{repo_id}/commits` | Get repository commits |
 
-### Installation
+### 📊 Analytics
 
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd GitArena
-   ```
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/analytics/dashboard` | Get dashboard statistics |
+| `GET` | `/analytics/activity` | Get activity metrics |
 
-2. **Configure environment variables**
-   ```bash
-   cp .env.example .env
-   ```
-   
-   Edit `.env` and add your GitHub OAuth credentials:
-   ```
-   GITHUB_CLIENT_ID=your-client-id
-   GITHUB_CLIENT_SECRET=your-client-secret
-   SECRET_KEY=your-secret-key
-   ```
+### 🤖 AI Features *(Coming Soon)*
 
-3. **Start the application**
-   ```bash
-   docker-compose up --build
-   ```
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/ai/code-review` | Get AI code review |
 
-4. **Access the application**
-   - Frontend: http://localhost:3000
-   - Backend API: http://localhost:8000
-   - API Documentation: http://localhost:8000/docs
+> 💡 **Tip**: Visit http://localhost:8000/docs for interactive API documentation with Swagger UI!
 
-### Development Setup (Without Docker)
+---
 
-#### Backend
+## 💻 Development
+
+### Running Without Docker
+
+#### Backend Setup
+
 ```bash
 cd backend
+
+# Create virtual environment
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Activate virtual environment
+# Windows:
+venv\Scripts\activate
+# macOS/Linux:
+source venv/bin/activate
+
+# Install dependencies
 pip install -r requirements.txt
+
+# Setup environment
 cp .env.example .env
 # Edit .env with your credentials
+
+# Run migrations
 alembic upgrade head
-uvicorn app.main:app --reload
+
+# Start development server
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-#### Frontend
+#### Frontend Setup
+
 ```bash
 cd frontend
+
+# Install dependencies
 npm install
-# Create .env.local with:
-# VITE_API_URL=http://localhost:8000
-# VITE_GITHUB_CLIENT_ID=your-client-id
+
+# Create environment file
+echo "VITE_API_URL=http://localhost:8000" > .env.local
+echo "VITE_GITHUB_CLIENT_ID=your_client_id" >> .env.local
+
+# Start development server
 npm run dev
 ```
 
-## 📊 Database Schema
+### Database Migrations
 
-### Core Tables
-- **users**: User accounts with GitHub integration
-- **spaces**: Organizational spaces for repositories
-- **repositories**: GitHub repositories
-- **commits**: Repository commits
-- **pull_requests**: Pull requests
-- **reviews**: PR reviews
+```bash
+# Create a new migration
+alembic revision --autogenerate -m "Description of changes"
 
-### Analytics Tables
-- **analytics_activity**: User activity metrics
-- **analytics_quality**: Code quality metrics
-- **analytics_collaboration**: Collaboration metrics
-- **ai_feedback**: AI-generated insights
+# Apply migrations
+alembic upgrade head
+
+# Rollback one migration
+alembic downgrade -1
+```
+
+---
 
 ## 🧪 Testing
 
 ### Backend Tests
+
 ```bash
 cd backend
+
+# Run all tests
 pytest
+
+# Run with coverage
+pytest --cov=app --cov-report=html
+
+# Run specific test file
+pytest tests/test_main.py
 ```
 
 ### Frontend Build
+
 ```bash
 cd frontend
+
+# Build for production
 npm run build
+
+# Preview production build
+npm run preview
+
+# Lint code
+npm run lint
 ```
-
-## 📝 API Endpoints
-
-### Authentication
-- `POST /auth/github/login` - GitHub OAuth login
-- `GET /auth/github/callback` - OAuth callback
-
-### Users
-- `GET /users/me` - Get current user profile
-- `GET /users/{user_id}` - Get user by ID
-
-### GitHub
-- `GET /github/repos` - Get user repositories (with optional sync)
-- `GET /github/repos/{repo_id}/commits` - Get repository commits
-
-### Analytics
-- `GET /analytics/dashboard` - Get dashboard statistics
-
-### AI
-- `POST /ai/code-review` - Get AI code review (placeholder)
-
-## 🔒 Security
-
-- JWT-based authentication
-- GitHub OAuth integration
-- Secure password hashing (bcrypt)
-- CORS configuration
-- Environment-based secrets
-
-## 📈 Future Enhancements (Post Sprint 1)
-
-- Pull request analytics
-- Team collaboration metrics
-- AI-powered code reviews
-- Advanced visualizations
-- Real-time notifications
-- Webhook integration
-
-## 🤝 Contributing
-
-This is Sprint 1 implementation. Future sprints will add more features.
-
-## 📄 License
-
-[Add your license here]
-
-## 👥 Team
-
-GitArena Development Team
 
 ---
 
-**Sprint 1 Status**: ✅ Complete
+## 🗄️ Database Schema
+
+### Core Tables
+
+| Table | Description |
+|-------|-------------|
+| `users` | User accounts with GitHub integration |
+| `spaces` | Organizational spaces for repositories |
+| `repositories` | GitHub repositories |
+| `commits` | Repository commits |
+| `pull_requests` | Pull requests |
+| `reviews` | PR reviews |
+
+### Analytics Tables
+
+| Table | Description |
+|-------|-------------|
+| `analytics_activity` | User activity metrics |
+| `analytics_quality` | Code quality metrics |
+| `analytics_collaboration` | Collaboration metrics |
+| `ai_feedback` | AI-generated insights |
+
+---
+
+## 🔒 Security Features
+
+- 🔐 **JWT-based authentication** - Secure token management
+- 🔑 **GitHub OAuth** - Industry-standard authentication
+- 🔒 **Password hashing** - bcrypt encryption
+- 🛡️ **CORS protection** - Configured for security
+- 🔐 **Environment secrets** - No hardcoded credentials
+- 🚫 **SQL injection protection** - SQLAlchemy ORM
+
+---
+
+## 🚧 Roadmap
+
+### 🎯 Sprint 2 *(Planned)*
+- [ ] Pull request analytics
+- [ ] Team collaboration metrics
+- [ ] Advanced data visualizations
+- [ ] Real-time notifications
+
+### 🎯 Sprint 3 *(Planned)*
+- [ ] AI-powered code reviews
+- [ ] Pattern detection
+- [ ] Webhook integration
+- [ ] Custom dashboards
+
+### 🎯 Future Enhancements
+- [ ] Multi-platform support (GitLab, Bitbucket)
+- [ ] Mobile app
+- [ ] Advanced AI insights
+- [ ] Team benchmarking
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions! Here's how you can help:
+
+1. 🍴 Fork the repository
+2. 🌿 Create a feature branch (`git checkout -b feature/AmazingFeature`)
+3. 💾 Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. 📤 Push to the branch (`git push origin feature/AmazingFeature`)
+5. 🔀 Open a Pull Request
+
+### Development Guidelines
+
+- Follow PEP 8 for Python code
+- Use TypeScript for all frontend code
+- Write tests for new features
+- Update documentation as needed
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 👥 Team
+
+**GitArena Development Team**
+
+Made with ❤️ by developers, for developers.
+
+---
+
+## 📞 Support
+
+Having issues? We're here to help!
+
+- 📧 **Email**: support@gitarena.dev
+- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/Efrat-Wilinger/-GitArena/issues)
+- 💬 **Discussions**: [GitHub Discussions](https://github.com/Efrat-Wilinger/-GitArena/discussions)
+
+---
+
+<div align="center">
+
+### 🌟 Star us on GitHub!
+
+If you find GitArena useful, please consider giving it a star ⭐
+
+**Sprint 1 Status**: ✅ **Complete**
+
+[⬆ Back to Top](#️-gitarena)
+
+</div>
