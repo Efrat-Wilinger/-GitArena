@@ -80,6 +80,17 @@ class SpaceService:
             # 1. Overview Stats
             print(f"DEBUG: Fetching overview stats for repo {repo.id}")
             total_commits = self.db.query(func.count(Commit.id)).filter(Commit.repository_id == repo.id).scalar() or 0
+            
+            # Auto-sync if no commits found
+            if total_commits == 0:
+                print(f"DEBUG: No commits found for repo {repo.id}, syncing from GitHub...")
+                try:
+                    await self.github_service.sync_commits(repo.id, access_token)
+                    # Re-fetch count after sync
+                    total_commits = self.db.query(func.count(Commit.id)).filter(Commit.repository_id == repo.id).scalar() or 0
+                except Exception as e:
+                    print(f"DEBUG: Failed to auto-sync commits: {e}")
+
             total_prs = self.db.query(func.count(PullRequest.id)).filter(PullRequest.repository_id == repo.id).scalar() or 0
             
             # Active contributors (unique authors in commits)

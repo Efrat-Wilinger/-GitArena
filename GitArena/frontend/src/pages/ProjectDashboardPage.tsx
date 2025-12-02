@@ -68,12 +68,24 @@ const ProjectDashboardPage: React.FC = () => {
     return (
         <div className="space-y-8">
             {/* Header */}
-            <div>
-                <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400">
+            <div className="mb-2">
+                <h2 className="text-lg text-gray-400 font-medium mb-2">Welcome back, User!</h2>
+                <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 animate-gradient mb-2">
                     Project Dashboard
                 </h1>
-                <p className="text-gray-400">Real-time analytics and team insights</p>
+                <p className="text-gray-400 text-sm">Real-time analytics and team insights</p>
             </div>
+
+            <style>{`
+                @keyframes gradient {
+                    0%, 100% { background-position: 0% 50%; }
+                    50% { background-position: 100% 50%; }
+                }
+                .animate-gradient {
+                    background-size: 200% 200%;
+                    animation: gradient 3s ease infinite;
+                }
+            `}</style>
 
             {/* Overview Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -218,19 +230,19 @@ const ProjectDashboardPage: React.FC = () => {
 
 const StatCard = ({ title, value, icon, color }: { title: string, value: number | string, icon: string, color: string }) => {
     const colorClasses = {
-        cyan: 'from-cyan-500/20 to-cyan-600/5 text-cyan-400 border-cyan-500/20',
-        purple: 'from-purple-500/20 to-purple-600/5 text-purple-400 border-purple-500/20',
-        pink: 'from-pink-500/20 to-pink-600/5 text-pink-400 border-pink-500/20',
-        green: 'from-green-500/20 to-green-600/5 text-green-400 border-green-500/20',
+        cyan: 'from-cyan-500/20 to-cyan-600/5 text-cyan-400 border-cyan-500/30 hover:border-cyan-500/50 hover:shadow-cyan-500/20',
+        purple: 'from-purple-500/20 to-purple-600/5 text-purple-400 border-purple-500/30 hover:border-purple-500/50 hover:shadow-purple-500/20',
+        pink: 'from-pink-500/20 to-pink-600/5 text-pink-400 border-pink-500/30 hover:border-pink-500/50 hover:shadow-pink-500/20',
+        green: 'from-green-500/20 to-green-600/5 text-green-400 border-green-500/30 hover:border-green-500/50 hover:shadow-green-500/20',
     };
 
     return (
-        <div className={`bg-gradient-to-br ${colorClasses[color as keyof typeof colorClasses]} border rounded-2xl p-6 backdrop-blur-sm`}>
+        <div className={`group bg-gradient-to-br ${colorClasses[color as keyof typeof colorClasses]} border rounded-2xl p-6 backdrop-blur-xl hover:scale-[1.02] transition-all duration-300 hover:shadow-2xl cursor-default`}>
             <div className="flex items-center justify-between mb-4">
-                <span className="text-gray-400 text-sm font-medium">{title}</span>
-                <span className="text-2xl">{icon}</span>
+                <span className="text-gray-400 text-sm font-semibold uppercase tracking-wider">{title}</span>
+                <span className="text-3xl group-hover:scale-110 transition-transform duration-300">{icon}</span>
             </div>
-            <div className="text-3xl font-bold text-white">{value}</div>
+            <div className="text-4xl font-bold text-white tabular-nums">{value}</div>
         </div>
     );
 };

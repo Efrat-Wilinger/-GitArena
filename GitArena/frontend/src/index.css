@@ -7,9 +7,9 @@
   line-height: 1.5;
   font-weight: 400;
 
-  color-scheme: light dark;
+  color-scheme: dark;
   color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  background-color: #0f172a;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -21,18 +21,68 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  background-color: #0f172a;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1e293b;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #06b6d4, #8b5cf6);
+  border-radius: 10px;
+  border: 2px solid #1e293b;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #22d3ee, #a78bfa);
+}
+
+/* Smooth transitions */
+* {
+  transition-property: color, background-color, border-color;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
 }
 
 @layer components {
   .btn-primary {
-    @apply bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-4 rounded-lg transition-colors;
+    @apply bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 text-white font-medium py-2 px-4 rounded-lg transition-all shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/40;
   }
-  
+
   .btn-secondary {
-    @apply bg-gray-600 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded-lg transition-colors;
+    @apply bg-gray-700 hover:bg-gray-600 text-white font-medium py-2 px-4 rounded-lg transition-colors;
   }
-  
+
   .card {
-    @apply bg-white dark:bg-gray-800 rounded-lg shadow-md p-6;
+    @apply bg-gray-800/50 backdrop-blur-xl rounded-2xl shadow-xl p-6 border border-gray-700/50;
   }
+
+  .glass-card {
+    @apply bg-gray-800/30 backdrop-blur-xl rounded-2xl border border-gray-700/50 shadow-2xl;
+  }
+}
+
+/* Animations */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
 }
