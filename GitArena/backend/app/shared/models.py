@@ -9,11 +9,12 @@ class User(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     github_id = Column(String, unique=True, index=True)
+    github_login = Column(String, unique=True, index=True, nullable=True)  # GitHub username for easier lookup
     username = Column(String, unique=True, index=True)
     email = Column(String, unique=True, index=True, nullable=True)
     avatar_url = Column(String, nullable=True)
     name = Column(String, nullable=True)
-    role = Column(String, default="member")  # member, manager
+    role = Column(String, default="member")  # member (employee/developer), admin (can manage teams)
     access_token = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -42,9 +43,9 @@ class SpaceMember(Base):
     __tablename__ = "space_members"
     
     id = Column(Integer, primary_key=True, index=True)
-    space_id = Column(Integer, ForeignKey("spaces.id"))
-    user_id = Column(Integer, ForeignKey("users.id"))
-    role = Column(String, default="viewer")  # viewer, editor, admin
+    space_id = Column(Integer, ForeignKey("spaces.id"), index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True)
+    role = Column(String, default="member")  # admin (team owner/manager), member (regular team member), viewer (read-only)
     created_at = Column(DateTime, default=datetime.utcnow)
     
     space = relationship("Space", back_populates="members")
