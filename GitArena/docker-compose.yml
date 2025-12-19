@@ -45,14 +45,15 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
-      args:
-        - VITE_API_URL=http://localhost:8000
-        - VITE_GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
-        - VITE_REDIRECT_URI=${GITHUB_REDIRECT_URI:-http://localhost:3000/auth/callback}
+      dockerfile: Dockerfile.dev
     container_name: gitarena-frontend
     ports:
-      - "3000:80"
+      - "3000:3000"
+    environment:
+      - VITE_API_TARGET=http://backend:8000
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
     depends_on:
       - backend
     restart: unless-stopped

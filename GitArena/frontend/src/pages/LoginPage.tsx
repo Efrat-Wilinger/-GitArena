@@ -1,16 +1,23 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 const GITHUB_CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID || 'your-github-client-id';
 const REDIRECT_URI = import.meta.env.VITE_REDIRECT_URI || 'http://localhost:3000/auth/callback';
 
 const LoginPage: React.FC = () => {
+    const [isHovered, setIsHovered] = useState(false);
+
     const handleGitHubLogin = () => {
+        if (GITHUB_CLIENT_ID === 'your-github-client-id') {
+            console.error('GitHub Client ID is not configured');
+            alert('Please configure VITE_GITHUB_CLIENT_ID in your .env file');
+            return;
+        }
+
         const params = new URLSearchParams({
             client_id: GITHUB_CLIENT_ID,
             redirect_uri: REDIRECT_URI,
-            scope: 'repo,user',
+            scope: 'repo user',
             prompt: 'login',
-            ts: Date.now().toString()
         });
         const githubAuthUrl = `https://github.com/login/oauth/authorize?${params.toString()}`;
         console.log('Redirecting to GitHub Auth:', githubAuthUrl);
@@ -18,159 +25,114 @@ const LoginPage: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 flex items-center justify-center p-4 relative overflow-hidden">
-            {/* Animated background elements */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob"></div>
-                <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-cyan-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-2000"></div>
-                <div className="absolute top-1/2 left-1/2 w-80 h-80 bg-pink-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-4000"></div>
-            </div>
+        <div className="min-h-screen bg-gradient-dark text-white flex flex-col font-sans relative overflow-hidden">
+            {/* Animated Grid Background */}
+            <div className="absolute inset-0 bg-grid-pattern opacity-30"></div>
 
-            {/* Grid pattern overlay */}
-            <div className="absolute inset-0 bg-grid-pattern opacity-10 pointer-events-none"></div>
+            {/* Gradient Orbs */}
+            <div className="absolute top-20 left-10 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl animate-float"></div>
+            <div className="absolute bottom-20 right-10 w-96 h-96 bg-orange-600/20 rounded-full blur-3xl animate-float" style={{ animationDelay: '1.5s' }}></div>
 
-            <div className="max-w-md w-full relative z-10">
-                {/* Logo and title */}
-                <div className="text-center mb-8">
-                    <div className="inline-block p-4 bg-gradient-to-br from-cyan-500 to-purple-600 rounded-2xl mb-6 shadow-2xl shadow-purple-500/50">
-                        <svg className="w-16 h-16 text-white" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+            {/* Navigation Bar */}
+            <nav className="relative z-10 w-full max-w-7xl mx-auto px-6 py-6 flex justify-between items-center">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 flex items-center justify-center bg-gradient-blue rounded-xl shadow-lg glow-blue">
+                        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2-1M4 7l2 1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5" />
                         </svg>
                     </div>
-                    <h1 className="text-5xl font-black mb-3 bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent animate-gradient">
-                        GitArena
-                    </h1>
-                    <p className="text-gray-300 text-lg font-light tracking-wide">
-                        GitHub Analytics <span className="text-cyan-400 font-mono">&</span> AI Platform
-                    </p>
+                    <span className="font-bold text-2xl tracking-tight">GitArena</span>
                 </div>
+                <div className="hidden md:flex gap-8 text-sm font-medium text-slate-300">
+                    <button className="hover:text-white transition-colors">Platform</button>
+                    <button className="hover:text-white transition-colors">Features</button>
+                    <button className="hover:text-white transition-colors">Docs</button>
+                </div>
+            </nav>
 
-                {/* Main card */}
-                <div className="bg-gray-800/50 backdrop-blur-xl rounded-2xl p-8 shadow-2xl border border-gray-700/50 hover:border-purple-500/50 transition-all duration-300">
-                    {/* Code-like decorative elements */}
-                    <div className="mb-6 font-mono text-xs text-gray-500">
-                        <div className="flex items-center gap-2 mb-1">
-                            <span className="text-purple-400">const</span>
-                            <span className="text-cyan-400">authenticate</span>
-                            <span className="text-gray-400">=</span>
-                            <span className="text-yellow-400">async</span>
-                            <span className="text-gray-400">() =&gt; {'{'}</span>
+            {/* Hero Section */}
+            <main className="relative z-10 flex-1 flex items-center justify-center px-4 w-full">
+                <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center gap-12 animate-slide-up">
+
+                    {/* Left Side - Text Content */}
+                    <div className="flex-1 flex flex-col items-center md:items-start text-center md:text-left">
+
+                        {/* Badge */}
+                        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-blue-500/30 bg-blue-500/10 text-blue-300 text-sm font-semibold mb-8 backdrop-blur-sm">
+                            <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+                            Powered by AI & Gamification
                         </div>
-                        <div className="ml-4 text-gray-600">// Initialize GitHub OAuth flow</div>
-                    </div>
 
-                    {/* GitHub login button */}
-                    <div className="space-y-4">
+                        {/* Main Headline */}
+                        <h1 className="text-5xl md:text-7xl font-black tracking-tight text-white mb-6 leading-tight">
+                            Drive Your Team<br />
+                            <span className="text-gradient-blue">
+                                with Intelligence
+                            </span>
+                        </h1>
+
+                        {/* Subheadline */}
+                        <p className="max-w-xl text-lg md:text-xl text-slate-300 font-light leading-relaxed mb-12">
+                            GitArena measures performance, analyzes code quality, and motivates developers
+                            with real-time insights, AI feedback, and intelligent gamification.
+                        </p>
+
+                        {/* CTA Button */}
                         <button
-                            type="button"
                             onClick={handleGitHubLogin}
-                            className="group relative w-full overflow-hidden rounded-xl bg-gradient-to-r from-gray-900 to-gray-800 p-[2px] transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl hover:shadow-purple-500/50"
+                            onMouseEnter={() => setIsHovered(true)}
+                            onMouseLeave={() => setIsHovered(false)}
+                            className="btn-primary flex items-center justify-center gap-3 text-lg"
                         >
-                            <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur"></div>
-                            <div className="relative bg-gradient-to-r from-gray-900 to-gray-800 rounded-xl px-6 py-4 flex items-center justify-center gap-3">
-                                <svg className="w-6 h-6 text-white group-hover:text-cyan-400 transition-colors" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M10 0C4.477 0 0 4.484 0 10.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0110 4.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.203 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.942.359.31.678.921.678 1.856 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0020 10.017C20 4.484 15.522 0 10 0z" clipRule="evenodd" />
-                                </svg>
-                                <span className="text-white font-semibold text-lg group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-cyan-400 group-hover:to-purple-400 group-hover:bg-clip-text transition-all">
-                                    Sign in with GitHub
-                                </span>
-                                <svg className="w-5 h-5 text-gray-400 group-hover:text-cyan-400 group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                                </svg>
-                            </div>
-                        </button>
-
-                        <div className="relative">
-                            <div className="absolute inset-0 flex items-center">
-                                <div className="w-full border-t border-gray-700"></div>
-                            </div>
-                            <div className="relative flex justify-center text-sm">
-                                <span className="px-2 bg-gray-800 text-gray-500">or</span>
-                            </div>
-                        </div>
-
-                        <button
-                            type="button"
-                            onClick={() => window.open('https://github.com/logout', '_blank')}
-                            className="w-full px-4 py-3 rounded-xl border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500 hover:bg-gray-700/50 transition-all duration-200 flex items-center justify-center gap-2 group"
-                        >
-                            <svg className="w-5 h-5 group-hover:text-purple-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                            <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
                             </svg>
-                            <span className="font-medium">Switch GitHub Account</span>
+                            Connect with GitHub
+                            <svg
+                                className={`w-5 h-5 transition-transform duration-300 ${isHovered ? 'translate-x-1' : ''}`}
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                            </svg>
                         </button>
-                        <p className="text-xs text-center text-gray-500">
-                            (Requires signing out of GitHub)
+
+                        <p className="mt-8 text-sm text-slate-400 font-medium">
+                            Trusted by 500+ development teams worldwide
                         </p>
                     </div>
 
-                    {/* Code-like decorative elements */}
-                    <div className="mt-6 font-mono text-xs text-gray-500">
-                        <div className="ml-4 text-gray-600">// Secure OAuth 2.0 authentication</div>
-                        <div className="flex items-center gap-2">
-                            <span className="text-gray-400">{'}'}</span>
-                        </div>
-                    </div>
+                    {/* Right Side - CodeBuddy Character */}
+                    <div className="flex-1 hidden md:flex items-center justify-center">
+                        <div className="relative">
+                            {/* Gradient background circle */}
+                            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/30 via-indigo-500/20 to-purple-500/30 blur-3xl rounded-full scale-150"></div>
 
-                    {/* Features */}
-                    <div className="mt-8 pt-6 border-t border-gray-700/50 grid grid-cols-3 gap-4 text-center">
-                        <div className="group cursor-default">
-                            <div className="text-cyan-400 text-2xl mb-1 group-hover:scale-110 transition-transform">⚡</div>
-                            <div className="text-xs text-gray-400 group-hover:text-cyan-400 transition-colors">Fast</div>
-                        </div>
-                        <div className="group cursor-default">
-                            <div className="text-purple-400 text-2xl mb-1 group-hover:scale-110 transition-transform">🔒</div>
-                            <div className="text-xs text-gray-400 group-hover:text-purple-400 transition-colors">Secure</div>
-                        </div>
-                        <div className="group cursor-default">
-                            <div className="text-pink-400 text-2xl mb-1 group-hover:scale-110 transition-transform">🤖</div>
-                            <div className="text-xs text-gray-400 group-hover:text-pink-400 transition-colors">AI-Powered</div>
+                            {/* Character */}
+                            <div className="relative animate-float">
+                                <img
+                                    src="/codebuddy.png"
+                                    alt="CodeBuddy - Your AI Companion"
+                                    className="w-72 h-72 lg:w-96 lg:h-96 object-contain drop-shadow-2xl"
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>
+            </main>
 
-                {/* Footer */}
-                <div className="mt-8 text-center">
-                    <p className="text-gray-500 text-sm font-mono">
-                        <span className="text-purple-400">Sprint 1</span>
-                        <span className="text-gray-600 mx-2">•</span>
-                        <span className="text-cyan-400">Story 205</span>
-                        <span className="text-gray-600 mx-2">•</span>
-                        <span className="text-gray-400">OAuth Login</span>
-                    </p>
+            {/* Footer */}
+            <footer className="relative z-10 w-full py-8 border-t border-white/5 backdrop-blur-sm">
+                <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-slate-400">
+                    <p>© 2025 GitArena. Built with ❤️ for developers.</p>
+                    <div className="flex gap-6">
+                        <a href="#" className="hover:text-white transition-colors">Privacy</a>
+                        <a href="#" className="hover:text-white transition-colors">Terms</a>
+                        <a href="#" className="hover:text-white transition-colors">Security</a>
+                    </div>
                 </div>
-            </div>
-
-            <style>{`
-        @keyframes blob {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          33% { transform: translate(30px, -50px) scale(1.1); }
-          66% { transform: translate(-20px, 20px) scale(0.9); }
-        }
-        .animate-blob {
-          animation: blob 7s infinite;
-        }
-        .animation-delay-2000 {
-          animation-delay: 2s;
-        }
-        .animation-delay-4000 {
-          animation-delay: 4s;
-        }
-        @keyframes gradient {
-          0%, 100% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-        }
-        .animate-gradient {
-          background-size: 200% 200%;
-          animation: gradient 3s ease infinite;
-        }
-        .bg-grid-pattern {
-          background-image: 
-            linear-gradient(to right, rgba(139, 92, 246, 0.1) 1px, transparent 1px),
-            linear-gradient(to bottom, rgba(139, 92, 246, 0.1) 1px, transparent 1px);
-          background-size: 40px 40px;
-        }
-      `}</style>
+            </footer>
         </div>
     );
 };

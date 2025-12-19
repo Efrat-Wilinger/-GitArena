@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
+import apiClient from '../api/client';
 import {
     XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-    AreaChart, Area, PieChart, Pie, Cell, BarChart, Bar
+    AreaChart, Area, PieChart, Pie, Cell
 } from 'recharts';
 
 // Types
@@ -34,11 +34,32 @@ interface ActivityStats {
     count: number;
 }
 
+interface ProjectProgress {
+    overall: number;
+    planning: number;
+    development: number;
+    testing: number;
+    deployment: number;
+}
+
+interface GitHubActivity {
+    id: number;
+    github_id: string;
+    type: string;
+    action: string;
+    title: string;
+    description: string | null;
+    user_login: string;
+    created_at: string;
+}
+
 interface SpaceDashboardResponse {
     overview: DashboardStats;
     languages: LanguageStats[];
     leaderboard: ContributorStats[];
     activity: ActivityStats[];
+    progress: ProjectProgress;
+    recent_activities: GitHubActivity[];
 }
 
 const ProjectDashboardPage: React.FC = () => {
@@ -49,10 +70,7 @@ const ProjectDashboardPage: React.FC = () => {
     const { data: dashboard, isLoading, error } = useQuery({
         queryKey: ['space-dashboard', spaceId],
         queryFn: async () => {
-            const response = await axios.get<SpaceDashboardResponse>(
-                `${import.meta.env.VITE_API_URL}/spaces/${spaceId}/dashboard`,
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
+            const response = await apiClient.get<SpaceDashboardResponse>(`/spaces/${spaceId}/dashboard`);
             return response.data;
         },
         enabled: !!spaceId && !!token
@@ -81,17 +99,24 @@ const ProjectDashboardPage: React.FC = () => {
 
     if (!dashboard) return null;
 
-    // Calculate project progress (mock data - replace with real logic)
-    const projectProgress = {
-        overall: 67,
-        planning: 100,
-        development: 75,
-        testing: 45,
-        deployment: 20,
+    // Use synced progress data with safe fallbacks
+    const projectProgress = dashboard.progress || {
+        overall: 0,
+        planning: 0,
+        development: 0,
+        testing: 0,
+        deployment: 0
+    };
+
+    const overview = dashboard.overview || {
+        total_commits: 0,
+        total_prs: 0,
+        active_contributors: 0,
+        total_lines_code: 0
     };
 
     const weeklyTarget = 50; // commits per week
-    const currentWeekCommits = Math.floor(dashboard.overview.total_commits / 4); // mock
+    const currentWeekCommits = Math.floor(overview.total_commits / 4); // mock
 
     return (
         <div className="space-y-6 animate-fade-in">
@@ -111,8 +136,8 @@ const ProjectDashboardPage: React.FC = () => {
                             key={period}
                             onClick={() => setSelectedPeriod(period)}
                             className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${selectedPeriod === period
-                                    ? 'bg-gradient-to-r from-cyan-600 to-purple-600 text-white shadow-lg'
-                                    : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+                                ? 'bg-gradient-to-r from-cyan-600 to-purple-600 text-white shadow-lg'
+                                : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
                                 }`}
                         >
                             {period === 'week' ? 'This Week' : period === 'month' ? 'This Month' : 'All Time'}
@@ -125,28 +150,28 @@ const ProjectDashboardPage: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <StatCard
                     title="Total Commits"
-                    value={dashboard.overview.total_commits}
+                    value={overview.total_commits}
                     icon="⚡"
                     color="cyan"
                     trend="+12%"
                 />
                 <StatCard
                     title="Active Contributors"
-                    value={dashboard.overview.active_contributors}
+                    value={overview.active_contributors}
                     icon="👥"
                     color="purple"
                     trend="+2"
                 />
                 <StatCard
                     title="Pull Requests"
-                    value={dashboard.overview.total_prs}
+                    value={overview.total_prs}
                     icon="🔀"
                     color="pink"
                     trend="+5%"
                 />
                 <StatCard
                     title="Lines of Code"
-                    value={dashboard.overview.total_lines_code.toLocaleString()}
+                    value={(overview.total_lines_code || 0).toLocaleString()}
                     icon="📝"
                     color="green"
                     trend="+8.2K"
@@ -190,11 +215,11 @@ const ProjectDashboardPage: React.FC = () => {
             <div>
                 <h3 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
                     <span className="text-2xl">👤</span>
-                    Team Members ({dashboard.leaderboard.length})
+                    Team Members ({(dashboard.leaderboard || []).length})
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {dashboard.leaderboard.map((member, index) => (
-                        <MemberCard key={member.username} member={member} rank={index + 1} />
+                    {(dashboard.leaderboard || []).map((member, index) => (
+                        <MemberCard key={member.username || index} member={member} rank={index + 1} />
                     ))}
                 </div>
             </div>
@@ -206,7 +231,7 @@ const ProjectDashboardPage: React.FC = () => {
                     <h3 className="text-xl font-semibold text-white mb-6">Commit Activity</h3>
                     <div className="h-[300px]">
                         <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={dashboard.activity}>
+                            <AreaChart data={dashboard.activity || []}>
                                 <defs>
                                     <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
                                         <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.8} />
@@ -233,7 +258,7 @@ const ProjectDashboardPage: React.FC = () => {
                         <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
                                 <Pie
-                                    data={dashboard.languages}
+                                    data={dashboard.languages || []}
                                     cx="50%"
                                     cy="50%"
                                     innerRadius={60}
@@ -241,7 +266,7 @@ const ProjectDashboardPage: React.FC = () => {
                                     paddingAngle={5}
                                     dataKey="bytes"
                                 >
-                                    {dashboard.languages.map((_, index) => (
+                                    {(dashboard.languages || []).map((_, index) => (
                                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                     ))}
                                 </Pie>
@@ -254,13 +279,13 @@ const ProjectDashboardPage: React.FC = () => {
                         </ResponsiveContainer>
                     </div>
                     <div className="space-y-2">
-                        {dashboard.languages.slice(0, 5).map((lang, index) => (
+                        {(dashboard.languages || []).slice(0, 5).map((lang, index) => (
                             <div key={lang.name} className="flex items-center justify-between text-sm">
                                 <div className="flex items-center gap-2">
                                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }}></div>
                                     <span className="text-gray-300">{lang.name}</span>
                                 </div>
-                                <span className="text-gray-400">{lang.percentage.toFixed(1)}%</span>
+                                <span className="text-gray-400">{lang.percentage?.toFixed(1) || 0}%</span>
                             </div>
                         ))}
                     </div>
@@ -286,7 +311,7 @@ const ProjectDashboardPage: React.FC = () => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-700">
-                            {dashboard.leaderboard.map((user, index) => (
+                            {(dashboard.leaderboard || []).map((user, index) => (
                                 <tr key={user.username} className="group hover:bg-gray-700/30 transition-colors">
                                     <td className="py-4">
                                         <div className="flex items-center gap-2">
@@ -301,7 +326,7 @@ const ProjectDashboardPage: React.FC = () => {
                                     <td className="py-4">
                                         <div className="flex items-center gap-3">
                                             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-purple-500 flex items-center justify-center text-sm font-bold text-white">
-                                                {user.username[0].toUpperCase()}
+                                                {user.username?.[0]?.toUpperCase() || '?'}
                                             </div>
                                             <span className="text-gray-200 font-medium">{user.username}</span>
                                         </div>
@@ -309,13 +334,13 @@ const ProjectDashboardPage: React.FC = () => {
                                     <td className="py-4">
                                         <span className="font-semibold text-cyan-400">{user.commits}</span>
                                     </td>
-                                    <td className="py-4 text-green-400 font-mono">+{user.additions.toLocaleString()}</td>
-                                    <td className="py-4 text-red-400 font-mono">-{user.deletions.toLocaleString()}</td>
+                                    <td className="py-4 text-green-400 font-mono">+{user.additions?.toLocaleString() || 0}</td>
+                                    <td className="py-4 text-red-400 font-mono">-{user.deletions?.toLocaleString() || 0}</td>
                                     <td className="py-4">
                                         <div className="w-32 bg-gray-700 rounded-full h-2.5">
                                             <div
                                                 className="bg-gradient-to-r from-cyan-500 to-purple-500 h-2.5 rounded-full transition-all"
-                                                style={{ width: `${Math.min((user.commits / dashboard.leaderboard[0].commits) * 100, 100)}%` }}
+                                                style={{ width: `${dashboard.leaderboard?.[0]?.commits ? Math.min((user.commits / dashboard.leaderboard[0].commits) * 100, 100) : 0}%` }}
                                             ></div>
                                         </div>
                                     </td>
@@ -323,6 +348,23 @@ const ProjectDashboardPage: React.FC = () => {
                             ))}
                         </tbody>
                     </table>
+                </div>
+            </div>
+
+            {/* Recent Activity Feed */}
+            <div className="bg-gray-800/50 backdrop-blur-xl rounded-2xl p-6 border border-gray-700">
+                <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
+                    <span className="text-2xl">⚡</span>
+                    Recent Activity Feed
+                </h3>
+                <div className="space-y-4">
+                    {dashboard.recent_activities && dashboard.recent_activities.length > 0 ? (
+                        dashboard.recent_activities.map((activity) => (
+                            <ActivityItem key={activity.id} activity={activity} />
+                        ))
+                    ) : (
+                        <p className="text-gray-500 text-center py-4">No recent activities found.</p>
+                    )}
                 </div>
             </div>
         </div>
@@ -392,18 +434,21 @@ const ProgressBar = ({ label, value, color }: { label: string; value: number; co
 
 // Member Card Component
 const MemberCard = ({ member, rank }: { member: ContributorStats; rank: number }) => {
-    const totalChanges = member.additions + member.deletions;
-    const additionRatio = totalChanges > 0 ? (member.additions / totalChanges) * 100 : 0;
+    const additions = member.additions || 0;
+    const deletions = member.deletions || 0;
+    const totalChanges = additions + deletions;
+    const additionRatio = totalChanges > 0 ? (additions / totalChanges) * 100 : 0;
+    const username = member.username || 'Unknown';
 
     return (
         <div className="bg-gray-800/50 backdrop-blur-xl border border-gray-700 rounded-xl p-5 hover-lift hover:border-cyan-500/50 transition-all">
             <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-500 to-purple-500 flex items-center justify-center text-lg font-bold text-white shadow-lg">
-                        {member.username[0].toUpperCase()}
+                        {username[0]?.toUpperCase() || '?'}
                     </div>
                     <div>
-                        <h4 className="font-semibold text-white">{member.username}</h4>
+                        <h4 className="font-semibold text-white">{username}</h4>
                         <p className="text-xs text-gray-400">Rank #{rank}</p>
                     </div>
                 </div>
@@ -419,11 +464,11 @@ const MemberCard = ({ member, rank }: { member: ContributorStats; rank: number }
                 </div>
                 <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-400">Lines Added</span>
-                    <span className="font-mono text-green-400">+{member.additions.toLocaleString()}</span>
+                    <span className="font-mono text-green-400">+{additions.toLocaleString()}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-400">Lines Removed</span>
-                    <span className="font-mono text-red-400">-{member.deletions.toLocaleString()}</span>
+                    <span className="font-mono text-red-400">-{deletions.toLocaleString()}</span>
                 </div>
             </div>
 
@@ -435,6 +480,54 @@ const MemberCard = ({ member, rank }: { member: ContributorStats; rank: number }
                 <div className="h-2 bg-gray-700 rounded-full overflow-hidden flex">
                     <div className="bg-green-500" style={{ width: `${additionRatio}%` }} />
                     <div className="bg-red-500" style={{ width: `${100 - additionRatio}%` }} />
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// Activity Item Component
+const ActivityItem = ({ activity }: { activity: GitHubActivity }) => {
+    const getIcon = (type: string) => {
+        switch (type) {
+            case 'PushEvent': return '💻';
+            case 'PullRequestEvent': return '🔀';
+            case 'IssuesEvent': return '❗';
+            case 'ReleaseEvent': return '🚀';
+            default: return '🔹';
+        }
+    };
+
+    const getBadgeColor = (type: string) => {
+        switch (type) {
+            case 'PushEvent': return 'bg-cyan-500/20 text-cyan-400';
+            case 'PullRequestEvent': return 'bg-purple-500/20 text-purple-400';
+            case 'IssuesEvent': return 'bg-orange-500/20 text-orange-400';
+            case 'ReleaseEvent': return 'bg-pink-500/20 text-pink-400';
+            default: return 'bg-gray-500/20 text-gray-400';
+        }
+    };
+
+    const dateStr = activity.created_at ? new Date(activity.created_at).toLocaleString() : 'Recent';
+
+    return (
+        <div className="flex items-start gap-4 p-3 rounded-lg hover:bg-gray-700/30 transition-colors border border-transparent hover:border-gray-700">
+            <div className="text-2xl mt-1">{getIcon(activity.type || '')}</div>
+            <div className="flex-1">
+                <div className="flex items-center justify-between mb-1">
+                    <h4 className="text-gray-200 font-medium text-sm">{activity.title || 'Repository Activity'}</h4>
+                    <span className="text-[10px] text-gray-500 font-mono">
+                        {dateStr}
+                    </span>
+                </div>
+                {activity.description && (
+                    <p className="text-xs text-gray-400 mb-2 line-clamp-2">{activity.description}</p>
+                )}
+                <div className="flex items-center gap-2">
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wider ${getBadgeColor(activity.type || '')}`}>
+                        {(activity.type || 'Activity').replace('Event', '')}
+                    </span>
+                    <span className="text-[10px] text-gray-500">by {activity.user_login || 'ghost'}</span>
                 </div>
             </div>
         </div>

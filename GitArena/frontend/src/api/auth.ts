@@ -8,6 +8,17 @@ export interface User {
     avatar_url?: string;
     github_id: string;
     created_at: string;
+    bio?: string;
+    location?: string;
+    company?: string;
+    blog?: string;
+    twitter_username?: string;
+    stats?: {
+        total_repositories: number;
+        total_commits: number;
+        total_prs: number;
+        total_issues: number;
+    };
 }
 
 export interface TokenResponse {
@@ -27,5 +38,9 @@ export const authApi = {
     getCurrentUser: async (): Promise<User> => {
         const response = await apiClient.get('/users/me');
         return response.data;
+    },
+
+    logout: () => {
+        localStorage.removeItem('token');
     },
 };

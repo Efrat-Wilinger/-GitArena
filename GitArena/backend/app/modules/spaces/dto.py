@@ -55,9 +55,22 @@ class ActivityStats(BaseModel):
     count: int
 
 
+class ProjectProgress(BaseModel):
+    overall: int
+    planning: int
+    development: int
+    testing: int
+    deployment: int
+
+
+from app.modules.github.dto import ActivityResponse
+
+
 class SpaceDashboardResponse(BaseModel):
     overview: DashboardStats
     languages: List[LanguageStats]
     leaderboard: List[ContributorStats]
     activity: List[ActivityStats]
+    progress: ProjectProgress
+    recent_activities: List[ActivityResponse] = []
 

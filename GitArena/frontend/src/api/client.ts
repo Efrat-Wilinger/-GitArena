@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 const apiClient = axios.create({
     baseURL: API_BASE_URL,
@@ -15,6 +15,9 @@ apiClient.interceptors.request.use(
         const token = localStorage.getItem('token');
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
+            console.log(`[API] Auth token added to ${config.url}`);
+        } else {
+            console.warn(`[API] No token found for ${config.url}`);
         }
         return config;
     },

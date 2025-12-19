@@ -1,5 +1,6 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Float, Boolean, JSON
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Float, Boolean, JSON, TIMESTAMP
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 from datetime import datetime
 from app.shared.database import Base
 
@@ -16,8 +17,16 @@ class User(Base):
     name = Column(String, nullable=True)
     role = Column(String, default="member")  # member (employee/developer), admin (can manage teams)
     access_token = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Detailed Profile Info
+    bio = Column(String, nullable=True)
+    location = Column(String, nullable=True)
+    company = Column(String, nullable=True)
+    blog = Column(String, nullable=True)
+    twitter_username = Column(String, nullable=True)
+    
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now())
     
     repositories = relationship("Repository", back_populates="user")
     spaces = relationship("Space", back_populates="owner")
@@ -61,6 +70,9 @@ class Repository(Base):
     full_name = Column(String)
     description = Column(Text, nullable=True)
     url = Column(String)
+    language = Column(String, nullable=True)
+    stargazers_count = Column(Integer, default=0)
+    forks_count = Column(Integer, default=0)
     user_id = Column(Integer, ForeignKey("users.id"))
     space_id = Column(Integer, ForeignKey("spaces.id"), nullable=True)
     is_synced = Column(Boolean, default=False)
@@ -72,6 +84,9 @@ class Repository(Base):
     space = relationship("Space", back_populates="repositories")
     commits = relationship("Commit", back_populates="repository")
     pull_requests = relationship("PullRequest", back_populates="repository")
+    issues = relationship("Issue", back_populates="repository")
+    releases = relationship("Release", back_populates="repository")
+    deployments = relationship("Deployment", back_populates="repository")
 
 
 class Commit(Base):
@@ -110,6 +125,24 @@ class PullRequest(Base):
     
     repository = relationship("Repository", back_populates="pull_requests")
     reviews = relationship("Review", back_populates="pull_request")
+
+
+class Issue(Base):
+    __tablename__ = "issues"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    github_id = Column(String, unique=True, index=True)
+    number = Column(Integer)
+    title = Column(String)
+    body = Column(Text, nullable=True)
+    state = Column(String)  # open, closed
+    author = Column(String)
+    repository_id = Column(Integer, ForeignKey("repositories.id"))
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    closed_at = Column(DateTime, nullable=True)
+    
+    repository = relationship("Repository", back_populates="issues")
 
 
 class Review(Base):
@@ -176,3 +209,51 @@ class AIFeedback(Base):
     content = Column(Text)
     meta_data = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class Release(Base):
+    __tablename__ = "releases"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    github_id = Column(String, unique=True, index=True)
+    tag_name = Column(String)
+    name = Column(String, nullable=True)
+    body = Column(Text, nullable=True)
+    draft = Column(Boolean, default=False)
+    prerelease = Column(Boolean, default=False)
+    created_at = Column(DateTime)
+    published_at = Column(DateTime, nullable=True)
+    repository_id = Column(Integer, ForeignKey("repositories.id"))
+    
+    repository = relationship("Repository", back_populates="releases")
+
+
+class Deployment(Base):
+    __tablename__ = "deployments"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    github_id = Column(String, unique=True, index=True)
+    environment = Column(String)
+    description = Column(String, nullable=True)
+    state = Column(String)
+    created_at = Column(DateTime)
+    updated_at = Column(DateTime)
+    repository_id = Column(Integer, ForeignKey("repositories.id"))
+    
+    repository = relationship("Repository", back_populates="deployments")
+
+
+class Activity(Base):
+    __tablename__ = "activities"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    github_id = Column(String, unique=True, index=True)
+    type = Column(String)  # commit, pr, issue, release, deployment
+    action = Column(String)  # created, merged, closed, etc.
+    title = Column(String)
+    description = Column(Text, nullable=True)
+    user_login = Column(String)
+    repository_id = Column(Integer, ForeignKey("repositories.id"))
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    repository = relationship("Repository")

@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from app.config.settings import settings
 from app.shared.exceptions import GitArenaException
@@ -26,16 +26,40 @@ app.add_middleware(
 )
 
 # Exception handlers
-app.add_exception_handler(GitArenaException, exception_handler)
-app.add_exception_handler(Exception, generic_exception_handler)
+# Exception handlers
+# app.add_exception_handler(GitArenaException, exception_handler)
+# app.add_exception_handler(Exception, generic_exception_handler)
+
+from fastapi.responses import JSONResponse
+import traceback
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request, exc):
+    error_msg = f"Global 500 Error: {str(exc)}"
+    print(error_msg)
+    # Write to file for backup debug access
+    try:
+        with open("debug_error.log", "a") as f:
+            f.write(f"\n--- ERROR ---\n{error_msg}\n{traceback.format_exc()}\n")
+    except:
+        pass
+        
+    traceback.print_exc()
+    return JSONResponse(
+        status_code=500,
+        content={"detail": error_msg, "trace": traceback.format_exc()}
+    )
 
 # Register routers
-app.include_router(auth_router)
-app.include_router(users_router)
-app.include_router(github_router)
-app.include_router(analytics_router)
-app.include_router(ai_router)
-app.include_router(spaces_controller)
+api_router = APIRouter(prefix="/api")
+api_router.include_router(auth_router)
+api_router.include_router(users_router)
+api_router.include_router(github_router)
+api_router.include_router(analytics_router)
+api_router.include_router(ai_router)
+api_router.include_router(spaces_controller)
+
+app.include_router(api_router)
 
 
 @app.get("/")
