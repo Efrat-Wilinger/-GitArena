@@ -6,7 +6,11 @@ from app.modules.users.dto import TokenResponse
 from app.shared.security import create_access_token
 from app.config.settings import settings
 import httpx
+import logging
 from datetime import timedelta
+
+logger = logging.getLogger(__name__)
+
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -19,10 +23,11 @@ async def github_login(code: str, db: Session = Depends(get_db)):
     """
     # Exchange code for access token
     try:
-        print(f"DEBUG: Starting GitHub login with code: {code[:5]}...")
-        print(f"DEBUG: Client ID: {settings.GITHUB_CLIENT_ID}")
+        logger.info(f"GITHUB_LOGIN_START: code={code[:5]}...")
+        logger.info(f"GITHUB_CONFIG: client_id={settings.GITHUB_CLIENT_ID[:5]}... redirect_uri={settings.GITHUB_REDIRECT_URI}")
         
         async with httpx.AsyncClient() as client:
+
             try:
                 token_response = await client.post(
                     "https://github.com/login/oauth/access_token",
@@ -34,20 +39,24 @@ async def github_login(code: str, db: Session = Depends(get_db)):
                         "redirect_uri": settings.GITHUB_REDIRECT_URI
                     }
                 )
-                print(f"DEBUG: GitHub Token Response Status: {token_response.status_code}")
-                # print(f"DEBUG: GitHub Token Response Body: {token_response.text}")
+                logger.info(f"GITHUB_TOKEN_STATUS: {token_response.status_code}")
                 
                 if token_response.status_code != 200:
+                    logger.error(f"GITHUB_TOKEN_ERROR: {token_response.text}")
                     raise HTTPException(status_code=400, detail=f"Failed to exchange code for token: {token_response.text}")
                 
                 token_data = token_response.json()
+                logger.info(f"GITHUB_TOKEN_DATA_KEYS: {list(token_data.keys())}")
                 if "error" in token_data:
+                     logger.error(f"GITHUB_OAUTH_ERROR: {token_data.get('error')} - {token_data.get('error_description')}")
                      raise HTTPException(status_code=400, detail=f"GitHub Error: {token_data.get('error_description')}")
                      
                 access_token = token_data.get("access_token")
                 
                 if not access_token:
+                    logger.error("GITHUB_NO_TOKEN: No access token in response")
                     raise HTTPException(status_code=400, detail=f"No access token received. Response: {token_data}")
+
                     
             except Exception as e:
                 print(f"DEBUG: Exception during token exchange: {str(e)}")
@@ -56,16 +65,23 @@ async def github_login(code: str, db: Session = Depends(get_db)):
         # Get user info from GitHub
         service = UserService(db)
         try:
+            logger.info("FETCHING_GITHUB_USER_INFO...")
             github_user = await service.get_github_user_info(access_token)
+            logger.info(f"GITHUB_USER_FETCHED: login={github_user.get('login')}")
             
             # Create or update user
+            logger.info("CREATE_OR_UPDATE_USER_DB...")
             user = service.create_or_update_user(github_user, access_token)
+            logger.info(f"USER_DB_SUCCESS: id={user.id}")
+
             
             # Generate JWT token
             jwt_token = create_access_token(
                 data={"sub": str(user.id)},
                 expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
             )
+            logger.info("JWT_CREATED_SUCCESSFULLY")
+
             
             return TokenResponse(
                 access_token=jwt_token,

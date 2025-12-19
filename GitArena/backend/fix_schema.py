@@ -34,7 +34,7 @@ def fix_schema():
 
     # 2. Add columns to users table
     print("Checking users table...")
-    user_cols = ["bio", "location", "company", "blog", "twitter_username"]
+    user_cols = ["bio", "location", "company", "blog", "twitter_username", "github_login"]
     with engine.connect() as conn:
         for col in user_cols:
             try:
@@ -43,8 +43,9 @@ def fix_schema():
                 trans.commit()
                 print(f"Added '{col}' column")
             except Exception as e:
-                trans.rollback()
+                if "trans" in locals(): trans.rollback()
                 print(f"Skipping '{col}' (likely exists)")
+
 
     # 3. Create issues table
     print("Checking issues table...")
@@ -138,15 +139,54 @@ def fix_schema():
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
     """
+    # 7. Create gamification tables
+    print("Checking gamification tables...")
+    gamification_sqls = [
+        """
+        CREATE TABLE IF NOT EXISTS user_gamification_stats (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER UNIQUE REFERENCES users(id),
+            level INTEGER DEFAULT 1,
+            xp INTEGER DEFAULT 0,
+            total_xp INTEGER DEFAULT 0,
+            streak_days INTEGER DEFAULT 0,
+            last_activity_date VARCHAR,
+            skills_xp JSONB DEFAULT '{}',
+            achievements JSONB DEFAULT '[]'
+        );
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS challenges (
+            id SERIAL PRIMARY KEY,
+            title VARCHAR,
+            description VARCHAR,
+            type VARCHAR,
+            target_value INTEGER,
+            reward_xp INTEGER,
+            reward_title VARCHAR
+        );
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS user_challenges (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER REFERENCES users(id),
+            challenge_id INTEGER REFERENCES challenges(id),
+            current_value INTEGER DEFAULT 0,
+            is_completed INTEGER DEFAULT 0
+        );
+        """
+    ]
     with engine.connect() as conn:
-        try:
-            trans = conn.begin()
-            conn.execute(text(create_activities_table_sql))
-            trans.commit()
-            print("Ensured 'activities' table exists")
-        except Exception as e:
-            trans.rollback()
-            print(f"Error creating activities table: {e}")
+        for sql in gamification_sqls:
+            try:
+                trans = conn.begin()
+                conn.execute(text(sql))
+                trans.commit()
+                print("Applied gamification schema change")
+            except Exception as e:
+                if "trans" in locals(): trans.rollback()
+                print(f"Error applying gamification schema: {e}")
+
 
 if __name__ == "__main__":
     fix_schema()

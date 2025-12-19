@@ -89,6 +89,8 @@ class GitHubService:
                 },
                 params={"per_page": per_page}
             )
+            if response.status_code == 409:
+                return []
             if response.status_code != 200:
                 logger.error(f"GitHub API Error (Commits): {response.status_code} - {response.text}")
                 raise GitHubAPIException(f"Failed to fetch commits: {response.status_code}")
@@ -306,6 +308,8 @@ class GitHubService:
                     "Accept": "application/vnd.github.v3+json"
                 }
             )
+            if response.status_code in [404, 409]:
+                return []
             if response.status_code != 200:
                 raise GitHubAPIException("Failed to fetch repository tree")
             return response.json()
@@ -327,8 +331,11 @@ class GitHubService:
                 },
                 params={"path": path, "per_page": 1}
             )
+            if response.status_code == 409:
+                return None
             if response.status_code != 200:
                 raise GitHubAPIException("Failed to fetch commit info")
+
             
             commits = response.json()
             if not commits:
@@ -360,8 +367,11 @@ class GitHubService:
                     "Accept": "application/vnd.github.v3+json"
                 }
             )
+            if response.status_code in [204, 404, 409]:
+                return []
             if response.status_code != 200:
                 raise GitHubAPIException("Failed to fetch contributors")
+
             
             return response.json()
 
@@ -381,8 +391,11 @@ class GitHubService:
                     "Accept": "application/vnd.github.v3+json"
                 }
             )
+            if response.status_code in [404, 409]:
+                return {}
             if response.status_code != 200:
                 raise GitHubAPIException("Failed to fetch languages")
+
             
             return response.json()
 
@@ -559,3 +572,78 @@ class GitHubService:
                 synced_activities.append(ActivityResponse.model_validate(activity))
                 
             return synced_activities
+    async def get_readme(self, repo_id: int, access_token: str) -> dict:
+        """Get repository README content from GitHub"""
+        repo = self.repository.get_repository_by_id(repo_id)
+        if not repo:
+            raise NotFoundException("Repository not found")
+            
+        owner, repo_name = repo.full_name.split("/")
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"https://api.github.com/repos/{owner}/{repo_name}/readme",
+                headers={
+                    "Authorization": f"Bearer {access_token}",
+                    "Accept": "application/vnd.github.v3+json"
+                }
+            )
+            
+            if response.status_code == 404:
+                return {"content": "No README found for this repository."}
+            
+            if response.status_code != 200:
+                raise GitHubAPIException(f"Failed to fetch README: {response.status_code}")
+                
+            data = response.json()
+            # GitHub returns base64 encoded content
+            import base64
+            content = base64.b64decode(data["content"]).decode("utf-8")
+            return {"content": content}
+
+    async def get_pull_requests(self, repo_id: int, access_token: str) -> List[dict]:
+        """Get repository pull requests (wrapper for sync or mock)"""
+        # For now, let's just return synced PRs or fetch them live
+        prs = await self.sync_pull_requests(repo_id, access_token)
+        return [pr.model_dump() for pr in prs]
+
+    async def get_language_stats(self, repo_id: int, access_token: str) -> List[dict]:
+        """Get repository language statistics formatted for frontend"""
+        languages = await self.get_languages(repo_id, access_token)
+        total_bytes = sum(languages.values()) if languages else 0
+        
+        if total_bytes == 0:
+            return []
+            
+        return [
+            {
+                "name": lang,
+                "bytes": bytes_count,
+                "percentage": round((bytes_count / total_bytes) * 100, 1)
+            }
+            for lang, bytes_count in languages.items()
+        ]
+
+    def get_commit_activity(self, repo_id: int, days: int = 30) -> List[dict]:
+        """Get commit activity from local database for the last N days"""
+        from datetime import datetime, timedelta
+        end_date = datetime.utcnow()
+        start_date = end_date - timedelta(days=days)
+        
+        # Get commits from DB
+        commits = self.repository.get_repository_commits_in_range(repo_id, start_date, end_date)
+        
+        # Aggregate by date
+        activity_map = {}
+        for d in range(days):
+            date_str = (start_date + timedelta(days=d)).strftime("%Y-%m-%d")
+            activity_map[date_str] = {"date": date_str, "count": 0, "additions": 0, "deletions": 0}
+            
+        for commit in commits:
+            date_str = commit.committed_date.strftime("%Y-%m-%d")
+            if date_str in activity_map:
+                activity_map[date_str]["count"] += 1
+                activity_map[date_str]["additions"] += commit.additions
+                activity_map[date_str]["deletions"] += commit.deletions
+                
+        return list(activity_map.values())

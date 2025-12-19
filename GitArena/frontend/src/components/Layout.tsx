@@ -2,10 +2,12 @@ import React from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { authApi } from '../api/auth';
+import { useUserRole } from './RoleBasedView';
 
 const Layout: React.FC = () => {
     const location = useLocation();
     const navigate = useNavigate();
+    const userRole = useUserRole();
 
     const { data: user } = useQuery({
         queryKey: ['currentUser'],
@@ -18,17 +20,33 @@ const Layout: React.FC = () => {
         navigate('/login');
     };
 
-    const navItems = [
-        { path: '/', label: 'Dashboard' },
-        { path: '/repositories', label: 'Repositories' },
-        { path: '/analytics', label: 'Analytics' },
+    // Dynamic navigation based on role
+    const managerNavItems = [
+        { path: '/manager/dashboard', label: 'Dashboard', icon: '📊' },
+        { path: '/manager/team', label: 'Team', icon: '👥' },
+        { path: '/manager/activity', label: 'Activity', icon: '📝' },
+        { path: '/manager/analytics', label: 'Analytics', icon: '📈' },
+        { path: '/repositories', label: 'Repositories', icon: '📚' },
+        { path: '/readme', label: 'README', icon: '📄' },
+        { path: '/manager/settings', label: 'Settings', icon: '⚙️' },
     ];
+
+    const memberNavItems = [
+        { path: '/member/dashboard', label: 'Dashboard', icon: '🏠' },
+        { path: '/member/my-work', label: 'My Work', icon: '✅' },
+        { path: '/member/achievements', label: 'Achievements', icon: '🏆' },
+        { path: '/repositories', label: 'Repositories', icon: '📚' },
+        { path: '/readme', label: 'README', icon: '📄' },
+    ];
+
+    const navItems = userRole === 'manager' ? managerNavItems : memberNavItems;
 
     return (
         <div className="min-h-screen bg-gradient-dark text-white font-sans flex flex-col relative overflow-x-hidden">
             {/* Background grid pattern */}
             <div className="fixed inset-0 bg-grid-pattern opacity-20 pointer-events-none"></div>
 
+            {/* Navigation */}
             <nav className="fixed top-0 w-full z-50 border-b border-white/5 bg-primary-900/80 backdrop-blur-xl">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between h-16">
@@ -43,7 +61,7 @@ const Layout: React.FC = () => {
                                 <span className="text-xl font-bold text-white tracking-tight">GitArena</span>
                             </Link>
 
-                            {/* Project Context & Switcher */}
+                            {/* Project Context & Role Badge */}
                             <div className="hidden md:flex items-center gap-2 pl-4 border-l border-white/10">
                                 <span className="text-sm text-slate-400">Project:</span>
                                 <button className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-sm font-medium text-white">
@@ -56,15 +74,18 @@ const Layout: React.FC = () => {
                                     </svg>
                                 </button>
                                 {/* Role Badge */}
-                                <span className="px-2 py-1 rounded-md text-xs font-semibold bg-gradient-orange text-white">
-                                    Manager
+                                <span className={`px-2 py-1 rounded-md text-xs font-semibold ${userRole === 'manager'
+                                        ? 'bg-gradient-orange text-white'
+                                        : 'bg-blue-500/20 text-blue-300'
+                                    }`}>
+                                    {userRole === 'manager' ? '👑 Manager' : '👤 Member'}
                                 </span>
                             </div>
 
                             {/* Navigation Links */}
                             <div className="hidden lg:flex items-center space-x-1">
-                                {navItems.map((item) => {
-                                    const isActive = location.pathname === item.path;
+                                {navItems.slice(0, 5).map((item) => {
+                                    const isActive = location.pathname === item.path || location.pathname.startsWith(item.path + '/');
                                     return (
                                         <Link
                                             key={item.path}
@@ -75,6 +96,7 @@ const Layout: React.FC = () => {
                                                     : 'text-slate-300 hover:text-white hover:bg-white/5'
                                                 }`}
                                         >
+                                            <span>{item.icon}</span>
                                             {item.label}
                                         </Link>
                                     );
@@ -112,28 +134,11 @@ const Layout: React.FC = () => {
             </nav>
 
             {/* Main Content */}
-            <main className="flex-1 pt-20 px-4 sm:px-6 lg:px-8 pb-12 relative z-10">
-                <div className="max-w-7xl mx-auto">
+            <main className="flex-1 pt-16 relative z-10">
+                <div className="py-8 px-4 sm:px-6 lg:px-8">
                     <Outlet />
                 </div>
             </main>
-
-            {/* Footer */}
-            <footer className="relative z-10 border-t border-white/5 backdrop-blur-sm bg-primary-900/50">
-                <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-                    <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                        <p className="text-sm text-slate-400">
-                            © 2025 <span className="font-semibold text-white">GitArena</span> — Built with ❤️ for developers
-                        </p>
-                        <div className="flex gap-6 text-sm text-slate-400">
-                            <a href="#" className="hover:text-white transition-colors">Privacy</a>
-                            <a href="#" className="hover:text-white transition-colors">Terms</a>
-                            <a href="#" className="hover:text-white transition-colors">Docs</a>
-                            <a href="#" className="hover:text-white transition-colors">Support</a>
-                        </div>
-                    </div>
-                </div>
-            </footer>
         </div>
     );
 };

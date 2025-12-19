@@ -36,3 +36,13 @@ class SpaceRepository:
 
     def get_space_by_id(self, space_id: int) -> Space:
         return self.db.query(Space).filter(Space.id == space_id).first()
+
+    def remove_member(self, space_id: int, user_id: int):
+        member = self.db.query(SpaceMember).filter(
+            SpaceMember.space_id == space_id,
+            SpaceMember.user_id == user_id
+        ).first()
+        if member:
+            self.db.delete(member)
+            self.db.commit()
+

@@ -242,3 +242,134 @@ class SpaceService:
             traceback.print_exc()
             print(f"DEBUG: Error in get_dashboard_stats: {e}")
             raise e
+    def get_project_members(self, project_id: int) -> List[dict]:
+        """Get members of a project with user details and stats"""
+        members = self.repository.get_members(project_id)
+        result = []
+        for m in members:
+            user = m.user
+            # Fetch some stats for the user in this project
+            repo_ids = [r.id for r in m.space.repositories]
+            commit_count = self.db.query(func.count(Commit.id)).filter(
+                Commit.repository_id.in_(repo_ids),
+                Commit.author_email == user.email if user.email else Commit.author_name == user.username
+            ).scalar() or 0
+            
+            result.append({
+                "id": str(user.id),
+                "username": user.username,
+                "name": user.name or user.username,
+                "email": user.email,
+                "avatar_url": user.avatar_url,
+                "role": m.role,
+                "joined_at": m.created_at.isoformat(),
+                "stats": {
+                    "commits": commit_count,
+                    "prs": 0, # To be implemented
+                    "reviews": 0
+                }
+            })
+        return result
+
+    async def add_member(self, project_id: int, username: str, role: str, owner_id: int):
+        """Add a member to project by username (only owner can add)"""
+        space = self.repository.get_space_by_id(project_id)
+        if not space or space.owner_id != owner_id:
+            raise NotFoundException("Project not found or unauthorized")
+            
+        user = self.user_repository.get_by_username(username)
+        if not user:
+            # Maybe they exist by GitHub ID or something? 
+            # For simplicity, let's assume they must exist in our system first.
+            raise NotFoundException(f"User {username} not found")
+            
+        return self.repository.add_member(project_id, user.id, role)
+
+    async def remove_member(self, project_id: int, user_id: int, owner_id: int):
+        """Remove a member from project (only owner can remove)"""
+        space = self.repository.get_space_by_id(project_id)
+        if not space or space.owner_id != owner_id:
+            raise NotFoundException("Project not found or unauthorized")
+            
+        return self.repository.remove_member(project_id, user_id)
+
+    def get_activity_log(self, project_id: int, type_filter: str = None, date_range: str = "7days") -> List[dict]:
+        """Get project-wide activity log"""
+        space = self.repository.get_space_by_id(project_id)
+        if not space:
+            return []
+            
+        repo_ids = [r.id for r in space.repositories]
+        query = self.db.query(Activity).filter(Activity.repository_id.in_(repo_ids))
+        
+        if type_filter:
+            query = query.filter(Activity.type == type_filter)
+            
+        # Simplified date range
+        days = 7
+        if "30" in str(date_range): days = 30
+        elif "90" in str(date_range): days = 90
+        
+        start_date = datetime.utcnow() - timedelta(days=days)
+        query = query.filter(Activity.created_at >= start_date)
+        
+        activities = query.order_by(Activity.created_at.desc()).limit(100).all()
+        
+        return [
+            {
+                "id": str(act.id),
+                "type": act.type.lower(),
+                "actor": {
+                    "name": act.user_login,
+                    "avatar": None # We could fetch from User table if linked
+                },
+                "action": act.action,
+                "target": act.title,
+                "timestamp": act.created_at.isoformat(),
+                "metadata": {"description": act.description}
+            } for act in activities
+        ]
+
+    def get_analytics(self, project_id: int, time_range: str = "30days") -> dict:
+        """Get high-level project analytics"""
+        space = self.repository.get_space_by_id(project_id)
+        if not space:
+            return {}
+            
+        repo_ids = [r.id for r in space.repositories]
+        
+        # 1. Commit Trend
+        days = 30
+        if "7" in str(time_range): days = 7
+        elif "90" in str(time_range): days = 90
+        
+        start_date = datetime.utcnow() - timedelta(days=days)
+        
+        trend_query = self.db.query(
+            func.date(Commit.committed_date).label("date"),
+            func.count(Commit.id).label("count")
+        ).filter(
+            Commit.repository_id.in_(repo_ids),
+            Commit.committed_date >= start_date
+        ).group_by(func.date(Commit.committed_date)).all()
+        
+        commit_trend = [{"date": str(row.date), "count": row.count} for row in trend_query]
+        
+        # 2. Language Distribution (Aggregate from all repos)
+        lang_distribution = []
+        # For simplicity, just use the main repo language for now or aggregate
+        # Let's skip complex aggregation for now and return something useful
+        
+        # 3. Team Metrics
+        total_commits = self.db.query(func.count(Commit.id)).filter(Commit.repository_id.in_(repo_ids)).scalar() or 0
+        total_prs = self.db.query(func.count(PullRequest.id)).filter(PullRequest.repository_id.in_(repo_ids)).scalar() or 0
+        
+        return {
+            "commitTrend": commit_trend,
+            "languageDistribution": [], # Frontend can fetch per repo
+            "teamMetrics": {
+                "totalCommits": total_commits,
+                "totalPRs": total_prs,
+                "avgReviewTime": 4.5 # Mock for now
+            }
+        }

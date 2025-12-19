@@ -7,6 +7,10 @@ from app.shared.exceptions import NotFoundException
 from app.shared.models import Repository, Commit, PullRequest, Issue
 from sqlalchemy import func
 from app.modules.users.dto import UserCreate, UserResponse, UserProfileStats
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 class UserService:
     def __init__(self, db: Session):
@@ -65,10 +69,13 @@ class UserService:
     
     def create_or_update_user(self, github_user: dict, access_token: str) -> UserResponse:
         """Create or update user from GitHub data"""
+        logger.info(f"USER_SERVICE: create_or_update_user for github_id={github_user.get('id')}")
         existing_user = self.repository.get_by_github_id(str(github_user["id"]))
+
         
         user_data = UserCreate(
             github_id=str(github_user["id"]),
+            github_login=github_user["login"],
             username=github_user["login"],
             email=github_user.get("email"),
             name=github_user.get("name"),
@@ -82,9 +89,11 @@ class UserService:
         )
         
         if existing_user:
+            logger.info(f"USER_SERVICE: Updating existing user id={existing_user.id}")
             user = self.repository.update(
                 existing_user,
                 username=user_data.username,
+                github_login=user_data.github_login,
                 email=user_data.email,
                 name=user_data.name,
                 avatar_url=user_data.avatar_url,
@@ -96,9 +105,12 @@ class UserService:
                 twitter_username=user_data.twitter_username
             )
         else:
+            logger.info("USER_SERVICE: Creating new user")
             user = self.repository.create(user_data)
         
+        logger.info(f"USER_SERVICE: Success for user_id={user.id}")
         return UserResponse.model_validate(user)
+
     
     def count_registered_users(self) -> int:
         """Count all registered users"""

@@ -9,6 +9,17 @@ from app.modules.github.controller import router as github_router
 from app.modules.analytics.controller import router as analytics_router
 from app.modules.ai.controller import router as ai_router
 from app.modules.spaces.controller import router as spaces_controller
+from app.modules.gamification.controller import router as gamification_router
+from app.modules.users.tasks_controller import router as tasks_router
+import logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+logger = logging.getLogger(__name__)
+
 
 app = FastAPI(
     title="GitArena API",
@@ -58,6 +69,9 @@ api_router.include_router(github_router)
 api_router.include_router(analytics_router)
 api_router.include_router(ai_router)
 api_router.include_router(spaces_controller)
+api_router.include_router(gamification_router)
+api_router.include_router(tasks_router)
+
 
 app.include_router(api_router)
 

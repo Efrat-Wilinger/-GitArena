@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from app.shared.database import get_db
 from app.modules.spaces.service import SpaceService
@@ -50,3 +50,64 @@ async def get_space_dashboard(
         raise HTTPException(status_code=400, detail="User not connected to GitHub")
         
     return await service.get_dashboard_stats(space_id, current_user.id, user.access_token)
+
+
+@router.get("/projects/{project_id}/members")
+async def get_project_members(
+    project_id: int,
+    current_user: UserResponse = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get all members of a project"""
+    service = SpaceService(db)
+    return service.get_project_members(project_id)
+
+
+@router.post("/projects/{project_id}/members")
+async def add_project_member(
+    project_id: int,
+    username: str,
+    role: str = "member",
+    current_user: UserResponse = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Add a member to the project (manager only)"""
+    service = SpaceService(db)
+    return await service.add_member(project_id, username, role, current_user.id)
+
+
+@router.delete("/projects/{project_id}/members/{user_id}")
+async def remove_project_member(
+    project_id: int,
+    user_id: int,
+    current_user: UserResponse = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Remove a member from the project (manager only)"""
+    service = SpaceService(db)
+    return await service.remove_member(project_id, user_id, current_user.id)
+
+
+@router.get("/projects/{project_id}/activity")
+async def get_project_activity(
+    project_id: int,
+    type_filter: str = Query(None),
+    date_range: str = Query("7days"),
+    current_user: UserResponse = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get project activity log"""
+    service = SpaceService(db)
+    return service.get_activity_log(project_id, type_filter, date_range)
+
+
+@router.get("/projects/{project_id}/analytics")
+async def get_project_analytics(
+    project_id: int,
+    time_range: str = Query("30days"),
+    current_user: UserResponse = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get project analytics and metrics"""
+    service = SpaceService(db)
+    return service.get_analytics(project_id, time_range)

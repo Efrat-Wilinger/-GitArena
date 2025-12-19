@@ -66,6 +66,16 @@ class GitHubRepository:
         """Count all commits"""
         return self.db.query(Commit).count()
 
+    def get_repository_commits_in_range(self, repo_id: int, start_date: datetime, end_date: datetime) -> List[Commit]:
+        """Get commits for a repository within a date range"""
+        return self.db.query(Commit)\
+            .filter(Commit.repository_id == repo_id)\
+            .filter(Commit.committed_date >= start_date)\
+            .filter(Commit.committed_date <= end_date)\
+            .order_by(Commit.committed_date.desc())\
+            .all()
+
+
     # Pull Request operations
     def get_pull_request_by_github_id(self, github_id: str) -> Optional[PullRequest]:
         """Get pull request by GitHub ID"""

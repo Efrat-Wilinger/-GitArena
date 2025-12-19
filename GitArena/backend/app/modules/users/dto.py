@@ -18,6 +18,7 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     github_id: str
+    github_login: Optional[str] = None
     access_token: Optional[str] = None
 
 
@@ -35,8 +36,11 @@ class UserProfileStats(BaseModel):
 class UserResponse(UserBase):
     id: int
     github_id: str
+    github_login: Optional[str] = None
+    access_token: Optional[str] = None
     created_at: datetime
     stats: Optional[UserProfileStats] = None
+
     
     class Config:
         from_attributes = True

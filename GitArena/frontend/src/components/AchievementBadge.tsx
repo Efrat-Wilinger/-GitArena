@@ -23,14 +23,14 @@ const AchievementBadge: React.FC<AchievementBadgeProps> = ({ achievement }) => {
     return (
         <div
             className={`group relative modern-card p-4 transition-all duration-300 ${unlocked
-                    ? 'hover:border-blue-500/50'
-                    : 'opacity-50'
+                ? 'hover:border-blue-500/50'
+                : 'opacity-50'
                 }`}
         >
             {/* Icon */}
             <div className={`w-14 h-14 mx-auto mb-3 rounded-xl flex items-center justify-center text-3xl transition-all duration-300 ${unlocked
-                    ? 'bg-gradient-blue shadow-lg shadow-blue-500/20 group-hover:scale-110'
-                    : 'bg-slate-800 border border-slate-700 grayscale'
+                ? 'bg-gradient-blue shadow-lg shadow-blue-500/20 group-hover:scale-110'
+                : 'bg-slate-800 border border-slate-700 grayscale'
                 }`}>
                 {unlocked ? icon : '🔒'}
             </div>
@@ -72,8 +72,9 @@ const AchievementBadge: React.FC<AchievementBadgeProps> = ({ achievement }) => {
 };
 
 // Sample Achievements Component
-export const AchievementsSection: React.FC = () => {
-    const achievements: Achievement[] = [
+export const AchievementsSection: React.FC<{ achievements?: string[] }> = ({ achievements: unlockedIds }) => {
+    const defaultAchievements: Achievement[] = [
+
         {
             id: '1',
             title: 'Early Adopter',
@@ -126,7 +127,13 @@ export const AchievementsSection: React.FC = () => {
         },
     ];
 
-    const unlockedCount = achievements.filter(a => a.unlocked).length;
+    const currentAchievements = defaultAchievements.map(a => ({
+        ...a,
+        unlocked: unlockedIds ? unlockedIds.includes(a.id) : a.unlocked
+    }));
+
+    const unlockedCount = currentAchievements.filter(a => a.unlocked).length;
+
 
     return (
         <div className="modern-card p-6 h-full">
@@ -137,7 +144,7 @@ export const AchievementsSection: React.FC = () => {
                         Achievements
                     </h3>
                     <p className="text-sm text-slate-400 mt-1">
-                        {unlockedCount} of {achievements.length} unlocked
+                        {unlockedCount} of {currentAchievements.length} unlocked
                     </p>
                 </div>
 
@@ -161,24 +168,26 @@ export const AchievementsSection: React.FC = () => {
                             strokeWidth="4"
                             fill="transparent"
                             strokeDasharray={`${2 * Math.PI * 28}`}
-                            strokeDashoffset={`${2 * Math.PI * 28 * (1 - unlockedCount / achievements.length)}`}
+                            strokeDashoffset={`${2 * Math.PI * 28 * (1 - unlockedCount / currentAchievements.length)}`}
                             className="text-blue-500 transition-all duration-1000"
                             strokeLinecap="round"
                         />
                     </svg>
                     <div className="absolute inset-0 flex items-center justify-center">
                         <span className="text-sm font-bold text-white">
-                            {Math.round((unlockedCount / achievements.length) * 100)}%
+                            {Math.round((unlockedCount / currentAchievements.length) * 100)}%
                         </span>
                     </div>
+
                 </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-                {achievements.map((achievement) => (
+                {currentAchievements.map((achievement) => (
                     <AchievementBadge key={achievement.id} achievement={achievement} />
                 ))}
             </div>
+
         </div>
     );
 };
