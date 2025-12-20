@@ -142,6 +142,18 @@ class GitHubService:
                 if commit_detail and "stats" in commit_detail:
                     stats = commit_detail["stats"]
                 
+                # Extract diff data (patches)
+                diff_data = []
+                if commit_detail and "files" in commit_detail:
+                    for f in commit_detail["files"]:
+                        diff_data.append({
+                            "filename": f.get("filename"),
+                            "status": f.get("status"),
+                            "additions": f.get("additions", 0),
+                            "deletions": f.get("deletions", 0),
+                            "patch": f.get("patch")  # This contains the actual code changes
+                        })
+
                 commit_data = CommitCreate(
                     sha=gh_commit["sha"],
                     message=gh_commit["commit"]["message"],
@@ -151,7 +163,8 @@ class GitHubService:
                     repository_id=repo_id,
                     additions=stats.get("additions", 0),
                     deletions=stats.get("deletions", 0),
-                    files_changed=stats.get("total", 0)
+                    files_changed=stats.get("total", 0),
+                    diff_data=diff_data
                 )
                 commit = self.repository.create_commit(commit_data)
                 synced_commits.append(CommitResponse.model_validate(commit))

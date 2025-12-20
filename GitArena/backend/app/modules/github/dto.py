@@ -38,6 +38,7 @@ class CommitBase(BaseModel):
     additions: int = 0
     deletions: int = 0
     files_changed: int = 0
+    diff_data: Optional[list] = None
 
 
 class CommitCreate(CommitBase):

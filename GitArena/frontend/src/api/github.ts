@@ -26,6 +26,13 @@ export interface Commit {
     additions: number;
     deletions: number;
     files_changed: number;
+    diff_data?: Array<{
+        filename: string;
+        status: string;
+        additions: number;
+        deletions: number;
+        patch?: string;
+    }>;
     created_at: string;
 }
 

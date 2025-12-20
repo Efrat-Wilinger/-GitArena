@@ -102,6 +102,7 @@ class Commit(Base):
     additions = Column(Integer, default=0)
     deletions = Column(Integer, default=0)
     files_changed = Column(Integer, default=0)
+    diff_data = Column(JSON, nullable=True)  # Detailed file changes (patch, etc)
     created_at = Column(DateTime, default=datetime.utcnow)
     
     repository = relationship("Repository", back_populates="commits")
