@@ -7,6 +7,9 @@ export interface Repository {
     full_name: string;
     description?: string;
     url: string;
+    language?: string;
+    stargazers_count: number;
+    forks_count: number;
     is_synced: boolean;
     last_synced_at?: string;
     created_at: string;

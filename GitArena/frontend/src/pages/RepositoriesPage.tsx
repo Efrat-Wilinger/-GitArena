@@ -120,16 +120,14 @@ const RepositoriesPage: React.FC = () => {
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {filteredRepos?.map((repo) => {
-                        // Mock language data (would come from API normally)
-                        const language = ['Python', 'TypeScript', 'JavaScript', 'Java', 'Go'][Math.floor(Math.random() * 5)];
-                        const stars = Math.floor(Math.random() * 500);
-                        const forks = Math.floor(Math.random() * 100);
+                        const language = repo.language || 'Unknown';
+                        const stars = repo.stargazers_count;
+                        const forks = repo.forks_count;
 
                         return (
                             <div
                                 key={repo.id}
-                                className="group modern-card p-5 hover:border-indigo-500/30 transition-all duration-300 hover:shadow-lg hover:shadow-indigo-900/10 hover:-translate-y-1 cursor-pointer"
-                                onClick={() => navigate(`/repositories/${repo.id}/commits`)}
+                                className="group modern-card p-5 hover:border-indigo-500/30 transition-all duration-300 hover:shadow-lg hover:shadow-indigo-900/10 hover:-translate-y-1"
                             >
                                 {/* Header */}
                                 <div className="flex justify-between items-start mb-3">
@@ -151,12 +149,12 @@ const RepositoriesPage: React.FC = () => {
                                 </div>
 
                                 {/* Description */}
-                                <p className="text-sm text-slate-400 mb-6 line-clamp-2 h-10 leading-relaxed">
+                                <p className="text-sm text-slate-400 mb-4 line-clamp-2 h-10 leading-relaxed">
                                     {repo.description || 'No description provided.'}
                                 </p>
 
-                                {/* Footer Info */}
-                                <div className="flex items-center justify-between pt-4 border-t border-slate-800/50">
+                                {/* Stats Info */}
+                                <div className="flex items-center justify-between mb-6">
                                     <div className="flex items-center gap-2">
                                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${LANGUAGE_COLORS[language] || LANGUAGE_COLORS.default}`}>
                                             <span className="w-1.5 h-1.5 rounded-full bg-current mr-1.5 opacity-70"></span>
@@ -178,6 +176,28 @@ const RepositoriesPage: React.FC = () => {
                                             {forks}
                                         </div>
                                     </div>
+                                </div>
+
+                                {/* Actions Footer */}
+                                <div className="grid grid-cols-3 gap-2 pt-4 border-t border-slate-800/50">
+                                    <button
+                                        onClick={() => navigate(`/readme/${repo.id}`)}
+                                        className="py-1.5 text-[11px] font-bold text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/5 rounded transition-all border border-transparent hover:border-indigo-500/20"
+                                    >
+                                        README
+                                    </button>
+                                    <button
+                                        onClick={() => navigate(`/repositories/${repo.id}/code`)}
+                                        className="py-1.5 text-[11px] font-bold text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/5 rounded transition-all border border-transparent hover:border-indigo-500/20"
+                                    >
+                                        CODE
+                                    </button>
+                                    <button
+                                        onClick={() => navigate(`/repositories/${repo.id}/commits`)}
+                                        className="py-1.5 text-[11px] font-bold text-white bg-indigo-600/20 hover:bg-indigo-600/40 rounded transition-all border border-indigo-500/20"
+                                    >
+                                        COMMITS
+                                    </button>
                                 </div>
                             </div>
                         );

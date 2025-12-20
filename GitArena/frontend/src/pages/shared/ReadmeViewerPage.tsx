@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { githubApi } from '../../api/github';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -9,7 +10,10 @@ interface ReadmeViewerProps {
     canEdit?: boolean;
 }
 
-const ReadmeViewerPage: React.FC<ReadmeViewerProps> = ({ repoId, canEdit = false }) => {
+const ReadmeViewerPage: React.FC<ReadmeViewerProps> = ({ repoId: propRepoId, canEdit = false }) => {
+    const { repoId: urlRepoId } = useParams<{ repoId: string }>();
+    const navigate = useNavigate();
+    const repoId = propRepoId || urlRepoId;
     const [content, setContent] = useState('');
     const [loading, setLoading] = useState(true);
     const [isEditing, setIsEditing] = useState(false);
@@ -64,7 +68,17 @@ const ReadmeViewerPage: React.FC<ReadmeViewerProps> = ({ repoId, canEdit = false
             <div className="modern-card p-8">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-4xl font-bold text-white mb-2">README</h1>
+                        <div className="flex items-center gap-4 mb-2">
+                            <button
+                                onClick={() => navigate('/repositories')}
+                                className="p-2 rounded-lg bg-slate-800 text-slate-400 hover:text-white transition-colors"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                                </svg>
+                            </button>
+                            <h1 className="text-4xl font-bold text-white">README</h1>
+                        </div>
                         <p className="text-slate-400">Project documentation and getting started guide</p>
                     </div>
                     <div className="flex gap-3">

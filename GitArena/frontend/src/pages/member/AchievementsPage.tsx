@@ -22,6 +22,8 @@ const AchievementsPage: React.FC = () => {
                 setChallenges(challengesData);
             } catch (error) {
                 console.error('Failed to fetch achievements data:', error);
+                // Set fallback data or at least stop loading
+                setStats({ level: 1, xp: 0, nextLevelXp: 1000, skills: {}, achievements: [], streak: 0 });
             } finally {
                 setLoading(false);
             }

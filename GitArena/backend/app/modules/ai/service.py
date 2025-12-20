@@ -7,6 +7,7 @@ from typing import Optional
 
 class AIService:
     def __init__(self, db: Session):
+        self.db = db
         self.repository = AIRepository(db)
     
     async def generate_insights(self, user_id: int) -> list:
@@ -28,7 +29,11 @@ class AIService:
         
         # 1. Gather data (last 30 days)
         thirty_days_ago = datetime.utcnow() - timedelta(days=30)
-        commits = self.db.query(Commit).filter(
+        
+        # Use repository's db session to be safe
+        db = getattr(self, 'db', None) or self.repository.db
+        
+        commits = db.query(Commit).filter(
             Commit.repository.has(user_id=user_id),
             Commit.committed_date >= thirty_days_ago
         ).limit(50).all()

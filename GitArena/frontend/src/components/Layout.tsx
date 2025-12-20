@@ -27,7 +27,6 @@ const Layout: React.FC = () => {
         { path: '/manager/activity', label: 'Activity', icon: '📝' },
         { path: '/manager/analytics', label: 'Analytics', icon: '📈' },
         { path: '/repositories', label: 'Repositories', icon: '📚' },
-        { path: '/readme', label: 'README', icon: '📄' },
         { path: '/manager/settings', label: 'Settings', icon: '⚙️' },
     ];
 
@@ -36,7 +35,6 @@ const Layout: React.FC = () => {
         { path: '/member/my-work', label: 'My Work', icon: '✅' },
         { path: '/member/achievements', label: 'Achievements', icon: '🏆' },
         { path: '/repositories', label: 'Repositories', icon: '📚' },
-        { path: '/readme', label: 'README', icon: '📄' },
     ];
 
     const navItems = userRole === 'manager' ? managerNavItems : memberNavItems;
@@ -75,8 +73,8 @@ const Layout: React.FC = () => {
                                 </button>
                                 {/* Role Badge */}
                                 <span className={`px-2 py-1 rounded-md text-xs font-semibold ${userRole === 'manager'
-                                        ? 'bg-gradient-orange text-white'
-                                        : 'bg-blue-500/20 text-blue-300'
+                                    ? 'bg-gradient-orange text-white'
+                                    : 'bg-blue-500/20 text-blue-300'
                                     }`}>
                                     {userRole === 'manager' ? '👑 Manager' : '👤 Member'}
                                 </span>

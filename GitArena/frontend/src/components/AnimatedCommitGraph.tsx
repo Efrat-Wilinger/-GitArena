@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { githubApi } from '../api/github';
 
 interface CommitData {
     date: string;

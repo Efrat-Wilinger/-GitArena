@@ -70,7 +70,7 @@ function App() {
                         </Route>
 
                         {/* Shared Routes */}
-                        <Route path="readme" element={<ReadmeViewerPage />} />
+                        <Route path="readme/:repoId" element={<ReadmeViewerPage />} />
                         <Route path="repositories" element={<RepositoriesPage />} />
                         <Route path="repositories/:repoId/commits" element={<CommitsPage />} />
                         <Route path="repositories/:repoId/code" element={<RepositoryCodePage />} />
