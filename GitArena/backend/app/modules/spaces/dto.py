@@ -73,4 +73,6 @@ class SpaceDashboardResponse(BaseModel):
     activity: List[ActivityStats]
     progress: ProjectProgress
     recent_activities: List[ActivityResponse] = []
+    is_admin_view: bool = False
+
 

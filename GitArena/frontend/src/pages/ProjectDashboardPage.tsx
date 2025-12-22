@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '../api/client';
+import { useProject } from '../contexts/ProjectContext';
 import {
     XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     AreaChart, Area, PieChart, Pie, Cell
@@ -60,12 +61,33 @@ interface SpaceDashboardResponse {
     activity: ActivityStats[];
     progress: ProjectProgress;
     recent_activities: GitHubActivity[];
+    is_admin_view?: boolean;
+}
+
+interface Space {
+    id: number;
+    name: string;
+    description: string;
+    owner_id: number;
 }
 
 const ProjectDashboardPage: React.FC = () => {
     const { spaceId } = useParams<{ spaceId: string }>();
+    const navigate = useNavigate();
     const token = localStorage.getItem('token');
     const [selectedPeriod, setSelectedPeriod] = useState<'week' | 'month' | 'all'>('month');
+    const [showProjectSwitcher, setShowProjectSwitcher] = useState(false);
+    const { setCurrentProjectId, setCurrentProjectName } = useProject();
+
+    // Fetch all user's projects for switcher
+    const { data: userProjects } = useQuery<Space[]>({
+        queryKey: ['user-spaces'],
+        queryFn: async () => {
+            const response = await apiClient.get('/spaces/');
+            return response.data;
+        },
+        enabled: !!token
+    });
 
     const { data: dashboard, isLoading, error } = useQuery({
         queryKey: ['space-dashboard', spaceId],
@@ -75,6 +97,17 @@ const ProjectDashboardPage: React.FC = () => {
         },
         enabled: !!spaceId && !!token
     });
+
+    // Update current project context when spaceId changes
+    useEffect(() => {
+        if (spaceId && userProjects) {
+            setCurrentProjectId(parseInt(spaceId));
+            const project = userProjects.find(p => p.id === parseInt(spaceId));
+            if (project) {
+                setCurrentProjectName(project.name);
+            }
+        }
+    }, [spaceId, userProjects, setCurrentProjectId, setCurrentProjectName]);
 
     if (isLoading) {
         return (
@@ -118,15 +151,83 @@ const ProjectDashboardPage: React.FC = () => {
     const weeklyTarget = 50; // commits per week
     const currentWeekCommits = Math.floor(overview.total_commits / 4); // mock
 
+    const currentProject = userProjects?.find(p => p.id === Number(spaceId));
+
     return (
         <div className="space-y-6 animate-fade-in">
-            {/* Header with Period Selector */}
+            {/* Header with Project Switcher and Period Selector */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                <div>
-                    <h1 className="text-4xl font-bold text-gradient mb-2">
-                        Project Dashboard
-                    </h1>
-                    <p className="text-gray-400">Real-time progress and team analytics</p>
+                <div className="flex items-center gap-4">
+                    <div>
+                        <div className="flex items-center gap-3 mb-2">
+                            <h1 className="text-4xl font-bold text-gradient">
+                                Project Dashboard
+                            </h1>
+                            {/* Role Badge */}
+                            {dashboard && (
+                                <span className={`px-3 py-1.5 rounded-lg text-sm font-semibold flex items-center gap-2 ${dashboard.is_admin_view
+                                    ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg'
+                                    : 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg'
+                                    }`}>
+                                    {dashboard.is_admin_view ? '👑 Admin' : '👤 Member'}
+                                </span>
+                            )}
+                        </div>
+                        <p className="text-gray-400">Real-time progress and team analytics</p>
+                    </div>
+
+                    {/* Project Switcher */}
+                    <div className="relative">
+                        <button
+                            onClick={() => setShowProjectSwitcher(!showProjectSwitcher)}
+                            className="flex items-center gap-2 px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg hover:border-cyan-500/50 transition-all"
+                        >
+                            <span className="text-sm font-medium text-gray-300">
+                                {currentProject?.name || 'Select Project'}
+                            </span>
+                            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+
+                        {/* Dropdown */}
+                        {showProjectSwitcher && userProjects && (
+                            <div className="absolute top-full left-0 mt-2 w-64 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-50 animate-fade-in">
+                                <div className="p-2">
+                                    <div className="text-xs text-gray-500 px-3 py-2 font-semibold uppercase tracking-wider">
+                                        Your Projects
+                                    </div>
+                                    {userProjects.map((project) => (
+                                        <button
+                                            key={project.id}
+                                            onClick={() => {
+                                                navigate(`/projects/${project.id}`);
+                                                setShowProjectSwitcher(false);
+                                            }}
+                                            className={`w-full text-left px-3 py-2 rounded-md transition-all ${project.id === Number(spaceId)
+                                                ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
+                                                : 'text-gray-300 hover:bg-gray-700/50'
+                                                }`}
+                                        >
+                                            <div className="font-medium">{project.name}</div>
+                                            <div className="text-xs text-gray-500 truncate">{project.description}</div>
+                                        </button>
+                                    ))}
+                                </div>
+                                <div className="border-t border-gray-700 p-2">
+                                    <button
+                                        onClick={() => {
+                                            navigate('/projects');
+                                            setShowProjectSwitcher(false);
+                                        }}
+                                        className="w-full text-left px-3 py-2 text-sm text-cyan-400 hover:bg-gray-700/50 rounded-md transition-all"
+                                    >
+                                        + View All Projects
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 {/* Period Selector */}
@@ -211,17 +312,26 @@ const ProjectDashboardPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* Team Members Cards */}
+            {/* Team Members Cards - Role-Based */}
             <div>
                 <h3 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
-                    <span className="text-2xl">👤</span>
-                    Team Members ({(dashboard.leaderboard || []).length})
+                    <span className="text-2xl">{dashboard.is_admin_view ? '👥' : '👤'}</span>
+                    {dashboard.is_admin_view
+                        ? `Team Members (${(dashboard.leaderboard || []).length})`
+                        : 'My Performance'
+                    }
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {(dashboard.leaderboard || []).map((member, index) => (
-                        <MemberCard key={member.username || index} member={member} rank={index + 1} />
-                    ))}
-                </div>
+                {(dashboard.leaderboard || []).length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {(dashboard.leaderboard || []).map((member, index) => (
+                            <MemberCard key={member.username || index} member={member} rank={index + 1} />
+                        ))}
+                    </div>
+                ) : (
+                    <div className="bg-gray-800/50 backdrop-blur-xl border border-gray-700 rounded-xl p-8 text-center">
+                        <p className="text-gray-400">No commits found yet. Start contributing to see your stats!</p>
+                    </div>
+                )}
             </div>
 
             {/* Charts Section */}
@@ -292,11 +402,11 @@ const ProjectDashboardPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* Leaderboard Table */}
+            {/* Leaderboard Table - Role-Based */}
             <div className="bg-gray-800/50 backdrop-blur-xl rounded-2xl p-6 border border-gray-700">
                 <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
-                    <span className="text-2xl">🏆</span>
-                    Top Contributors
+                    <span className="text-2xl">{dashboard.is_admin_view ? '🏆' : '📊'}</span>
+                    {dashboard.is_admin_view ? 'Top Contributors' : 'My Statistics'}
                 </h3>
                 <div className="overflow-x-auto">
                     <table className="w-full">

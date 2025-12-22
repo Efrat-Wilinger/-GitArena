@@ -3,11 +3,13 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { authApi } from '../api/auth';
 import { useUserRole } from './RoleBasedView';
+import { useProject } from '../contexts/ProjectContext';
 
 const Layout: React.FC = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const userRole = useUserRole();
+    const { currentProjectName } = useProject();
 
     const { data: user } = useQuery({
         queryKey: ['currentUser'],
@@ -59,26 +61,23 @@ const Layout: React.FC = () => {
                                 <span className="text-xl font-bold text-white tracking-tight">GitArena</span>
                             </Link>
 
-                            {/* Project Context & Role Badge */}
-                            <div className="hidden md:flex items-center gap-2 pl-4 border-l border-white/10">
-                                <span className="text-sm text-slate-400">Project:</span>
-                                <button className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-sm font-medium text-white">
-                                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            {/* Current Project Indicator */}
+                            {currentProjectName && (
+                                <div className="hidden md:flex items-center gap-2 pl-4 border-l border-white/10">
+                                    <svg className="w-4 h-4 text-slate-400" fill="currentColor" viewBox="0 0 20 20">
                                         <path fillRule="evenodd" d="M2 5a2 2 0 012-2h12a2 2 0 012 2v2a2 2 0 01-2 2H4a2 2 0 01-2-2V5zm14 1a1 1 0 11-2 0 1 1 0 012 0z" clipRule="evenodd" />
                                     </svg>
-                                    GitArena
-                                    <svg className="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                    </svg>
-                                </button>
-                                {/* Role Badge */}
-                                <span className={`px-2 py-1 rounded-md text-xs font-semibold ${userRole === 'manager'
-                                    ? 'bg-gradient-orange text-white'
-                                    : 'bg-blue-500/20 text-blue-300'
-                                    }`}>
-                                    {userRole === 'manager' ? '👑 Manager' : '👤 Member'}
-                                </span>
-                            </div>
+                                    <span className="text-sm text-slate-300 font-medium">{currentProjectName}</span>
+                                </div>
+                            )}
+
+                            {/* Role Badge */}
+                            <span className={`px-2 py-1 rounded-md text-xs font-semibold ${userRole === 'manager'
+                                ? 'bg-gradient-orange text-white'
+                                : 'bg-blue-500/20 text-blue-300'
+                                }`}>
+                                {userRole === 'manager' ? '👑 Manager' : '👤 Member'}
+                            </span>
 
                             {/* Navigation Links */}
                             <div className="hidden lg:flex items-center space-x-1">

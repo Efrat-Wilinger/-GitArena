@@ -8,8 +8,10 @@ import RepositoryCodePage from './pages/RepositoryCodePage';
 import ProjectsPage from './pages/ProjectsPage';
 import CreateProjectPage from './pages/CreateProjectPage';
 import ProjectDashboardPage from './pages/ProjectDashboardPage';
+import ProjectSelectionPage from './pages/ProjectSelectionPage';
 import Layout from './components/Layout';
 import { useUserRole } from './components/RoleBasedView';
+import { ProjectProvider } from './contexts/ProjectContext';
 
 // Manager pages
 import TeamManagementPage from './pages/manager/TeamManagementPage';
@@ -33,7 +35,7 @@ const ProtectedLayout = () => {
     return isAuthenticated ? <Layout /> : <Navigate to="/login" replace />;
 };
 
-// Role-based redirect
+// Role-based redirect for legacy routes
 const RoleBasedDashboard = () => {
     const role = useUserRole();
     return role === 'manager'
@@ -44,45 +46,47 @@ const RoleBasedDashboard = () => {
 function App() {
     return (
         <QueryClientProvider client={queryClient}>
-            <Router>
-                <Routes>
-                    <Route path="/login" element={<LoginPage />} />
-                    <Route path="/auth/callback" element={<CallbackPage />} />
+            <ProjectProvider>
+                <Router>
+                    <Routes>
+                        <Route path="/login" element={<LoginPage />} />
+                        <Route path="/auth/callback" element={<CallbackPage />} />
 
-                    <Route path="/" element={<ProtectedLayout />}>
-                        {/* Root redirect based on role */}
-                        <Route index element={<RoleBasedDashboard />} />
+                        <Route path="/" element={<ProtectedLayout />}>
+                            {/* Project Selection Welcome Screen */}
+                            <Route index element={<ProjectSelectionPage />} />
 
-                        {/* Manager Routes */}
-                        <Route path="manager">
-                            <Route path="dashboard" element={<ProfilePage />} />
-                            <Route path="team" element={<TeamManagementPage />} />
-                            <Route path="activity" element={<ActivityJournalPage />} />
-                            <Route path="analytics" element={<AnalyticsPage />} />
-                            <Route path="settings" element={<SettingsPage />} />
+                            {/* Manager Routes */}
+                            <Route path="manager">
+                                <Route path="dashboard" element={<ProfilePage />} />
+                                <Route path="team" element={<TeamManagementPage />} />
+                                <Route path="activity" element={<ActivityJournalPage />} />
+                                <Route path="analytics" element={<AnalyticsPage />} />
+                                <Route path="settings" element={<SettingsPage />} />
+                            </Route>
+
+                            {/* Member Routes */}
+                            <Route path="member">
+                                <Route path="dashboard" element={<MemberDashboardPage />} />
+                                <Route path="my-work" element={<MyWorkPage />} />
+                                <Route path="achievements" element={<AchievementsPage />} />
+                            </Route>
+
+                            {/* Shared Routes */}
+                            <Route path="readme/:repoId" element={<ReadmeViewerPage />} />
+                            <Route path="repositories" element={<RepositoriesPage />} />
+                            <Route path="repositories/:repoId/commits" element={<CommitsPage />} />
+                            <Route path="repositories/:repoId/code" element={<RepositoryCodePage />} />
+                            <Route path="projects" element={<ProjectsPage />} />
+                            <Route path="projects/new" element={<CreateProjectPage />} />
+                            <Route path="projects/:spaceId" element={<ProjectDashboardPage />} />
+
+                            {/* Legacy profile route - redirect based on role */}
+                            <Route path="profile" element={<RoleBasedDashboard />} />
                         </Route>
-
-                        {/* Member Routes */}
-                        <Route path="member">
-                            <Route path="dashboard" element={<MemberDashboardPage />} />
-                            <Route path="my-work" element={<MyWorkPage />} />
-                            <Route path="achievements" element={<AchievementsPage />} />
-                        </Route>
-
-                        {/* Shared Routes */}
-                        <Route path="readme/:repoId" element={<ReadmeViewerPage />} />
-                        <Route path="repositories" element={<RepositoriesPage />} />
-                        <Route path="repositories/:repoId/commits" element={<CommitsPage />} />
-                        <Route path="repositories/:repoId/code" element={<RepositoryCodePage />} />
-                        <Route path="projects" element={<ProjectsPage />} />
-                        <Route path="projects/new" element={<CreateProjectPage />} />
-                        <Route path="projects/:spaceId" element={<ProjectDashboardPage />} />
-
-                        {/* Legacy profile route - redirect based on role */}
-                        <Route path="profile" element={<RoleBasedDashboard />} />
-                    </Route>
-                </Routes>
-            </Router>
+                    </Routes>
+                </Router>
+            </ProjectProvider>
         </QueryClientProvider>
     );
 }

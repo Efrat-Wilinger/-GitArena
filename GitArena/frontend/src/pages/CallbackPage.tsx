@@ -32,7 +32,7 @@ const CallbackPage: React.FC = () => {
 
                 // Delay redirect slightly to show success message
                 setTimeout(() => {
-                    window.location.href = '/profile';
+                    window.location.href = '/';
                 }, 1500);
 
             } catch (err: any) {
@@ -58,7 +58,7 @@ const CallbackPage: React.FC = () => {
     }, [searchParams, navigate]);
 
     const handleManualRedirect = () => {
-        window.location.href = '/profile';
+        window.location.href = '/';
     };
 
     const handleRetry = () => {

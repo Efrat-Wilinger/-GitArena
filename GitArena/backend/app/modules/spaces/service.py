@@ -61,19 +61,34 @@ class SpaceService:
         return [SpaceResponse.model_validate(s) for s in spaces]
 
     async def get_dashboard_stats(self, space_id: int, user_id: int, access_token: str) -> SpaceDashboardResponse:
+        from app.shared.models import SpaceMember
+        
         space = self.repository.get_space_by_id(space_id)
         if not space:
             raise NotFoundException("Space not found")
+        
+        # Check user's role in this project
+        user_member = self.db.query(SpaceMember).filter(
+            SpaceMember.space_id == space_id,
+            SpaceMember.user_id == user_id
+        ).first()
+        
+        is_owner = space.owner_id == user_id
+        
+        if not user_member and not is_owner:
+            raise NotFoundException("Not a member of this project")
+        
+        is_admin = is_owner or (user_member and user_member.role == 'admin')
             
         # Get repository
         repo = space.repositories[0] if space.repositories else None
         if not repo:
-             # Return empty stats if no repo linked
              return SpaceDashboardResponse(
                  overview=DashboardStats(total_commits=0, total_prs=0, active_contributors=0, total_lines_code=0),
                  languages=[],
                  leaderboard=[],
-                 activity=[]
+                 activity=[],
+                 is_admin_view=is_admin
              )
              
         try:
@@ -81,28 +96,23 @@ class SpaceService:
             print(f"DEBUG: Fetching overview stats for repo {repo.id}")
             total_commits = self.db.query(func.count(Commit.id)).filter(Commit.repository_id == repo.id).scalar() or 0
             
-            # Auto-sync if no commits found
             if total_commits == 0:
-                print(f"DEBUG: No commits found for repo {repo.id}, syncing from GitHub...")
+                print(f"DEBUG: No commits found for repo {repo.id}, attempting sync from GitHub...")
                 try:
                     await self.github_service.sync_commits(repo.id, access_token)
-                    await self.github_service.sync_pull_requests(repo.id, access_token) # Trigger PR sync too
-                    await self.github_service.sync_releases(repo.id, access_token) # Trigger Release sync
-                    await self.github_service.sync_deployments(repo.id, access_token) # Trigger Deployment sync
-                    await self.github_service.sync_activities(repo.id, access_token) # Refresh activity feed
+                    await self.github_service.sync_pull_requests(repo.id, access_token)
+                    await self.github_service.sync_releases(repo.id, access_token)
+                    await self.github_service.sync_deployments(repo.id, access_token)
+                    await self.github_service.sync_activities(repo.id, access_token)
                     
-                    # Re-fetch count after sync
                     total_commits = self.db.query(func.count(Commit.id)).filter(Commit.repository_id == repo.id).scalar() or 0
+                    print(f"DEBUG: After sync, total_commits = {total_commits}")
                 except Exception as e:
-                    print(f"DEBUG: Failed to auto-sync commits: {e}")
+                    print(f"DEBUG: Failed to auto-sync commits (non-critical, using local data): {e}")
+                    # Continue with empty data instead of failing
 
-            # Count PRs from database as we now sync them
             total_prs = self.db.query(func.count(PullRequest.id)).filter(PullRequest.repository_id == repo.id).scalar() or 0
-            
-            # Active contributors (unique authors in commits)
             active_contributors = self.db.query(func.count(func.distinct(Commit.author_email))).filter(Commit.repository_id == repo.id).scalar() or 0
-            
-            # Total lines (sum of additions)
             total_lines = self.db.query(func.sum(Commit.additions)).filter(Commit.repository_id == repo.id).scalar() or 0
             
             overview = DashboardStats(
@@ -113,7 +123,7 @@ class SpaceService:
             )
             print(f"DEBUG: Overview stats: {overview}")
             
-            # 2. Languages (from GitHub API)
+            # 2. Languages
             try:
                 print(f"DEBUG: Fetching languages for repo {repo.id}")
                 languages_data = await self.github_service.get_languages(repo.id, access_token)
@@ -123,40 +133,60 @@ class SpaceService:
                     for lang, count in languages_data.items()
                 ]
             except Exception as e:
-                print(f"DEBUG: Failed to fetch languages: {e}")
+                print(f"DEBUG: Failed to fetch languages (non-critical): {e}")
+                # Don't fail dashboard if GitHub repo doesn't exist
                 languages = []
             
-            # 3. Leaderboard
-            print(f"DEBUG: Fetching leaderboard for repo {repo.id}")
-            # Group by author email to handle name variations, but select name and avatar too.
-            # Limitation: This simple grouping might pick an arbitrary name if they changed it, but good enough for now.
-            # We'll fetch the most recent commit for each author to get the latest avatar? 
-            # Or just group by author_name for simplicity as before, but we need to fetch the avatar_url. 
-            # Since we don't store avatar_url in Commit yet (my bad in implementation plan check), we need to fetch it from GitHub users or cache it.
-            # WAIT, I see User model has avatar_url, but Commit table does NOT have avatar_url column in the model I saw earlier.
-            # Let's check `Commit` model again. It has `author_email`.
             
-            # Strategy: Get top contributors by stats, then for each one, try to find a User in our DB with that email (if they logged in) 
-            # OR use the `avatar_url` from the last commit if we were storing it.
-            # I didn't add avatar_url to Commit model in the previous step.
-            # Let's just return None for now but fetch real stats.
+            # 3. Leaderboard - ROLE-BASED
+            print(f"DEBUG: Fetching leaderboard for repo {repo.id}, is_admin={is_admin}")
             
-            leaderboard_query = self.db.query(
-                Commit.author_name,
-                func.count(Commit.id).label("commits"),
-                func.sum(Commit.additions).label("additions"),
-                func.sum(Commit.deletions).label("deletions")
-            ).filter(Commit.repository_id == repo.id).group_by(Commit.author_name).order_by(desc("commits")).limit(10).all()
-            
-            leaderboard = [
-                ContributorStats(
-                    username=row.author_name or "Unknown",
-                    avatar_url=None, # Tuple index 5 if I add it, but for now None. Frontend shows initial/color if None.
-                    commits=row.commits,
-                    additions=row.additions or 0,
-                    deletions=row.deletions or 0
-                ) for row in leaderboard_query
-            ]
+            if is_admin:
+                leaderboard_query = self.db.query(
+                    Commit.author_name,
+                    func.count(Commit.id).label("commits"),
+                    func.sum(Commit.additions).label("additions"),
+                    func.sum(Commit.deletions).label("deletions")
+                ).filter(Commit.repository_id == repo.id).group_by(Commit.author_name).order_by(desc("commits")).limit(10).all()
+                
+                leaderboard = [
+                    ContributorStats(
+                        username=row.author_name or "Unknown",
+                        avatar_url=None,
+                        commits=row.commits,
+                        additions=row.additions or 0,
+                        deletions=row.deletions or 0
+                    ) for row in leaderboard_query
+                ]
+            else:
+                current_user = self.user_repository.get_by_id(user_id)
+                if current_user:
+                    user_stats = self.db.query(
+                        func.count(Commit.id).label("commits"),
+                        func.sum(Commit.additions).label("additions"),
+                        func.sum(Commit.deletions).label("deletions")
+                    ).filter(
+                        Commit.repository_id == repo.id
+                    ).filter(
+                        (Commit.author_email == current_user.email) | 
+                        (Commit.author_name == current_user.username) |
+                        (Commit.author_name == current_user.name)
+                    ).first()
+                    
+                    if user_stats and user_stats.commits > 0:
+                        leaderboard = [
+                            ContributorStats(
+                                username=current_user.username or current_user.name or "You",
+                                avatar_url=current_user.avatar_url,
+                                commits=user_stats.commits or 0,
+                                additions=user_stats.additions or 0,
+                                deletions=user_stats.deletions or 0
+                            )
+                        ]
+                    else:
+                        leaderboard = []
+                else:
+                    leaderboard = []
             
             # 4. Activity (Last 30 days)
             # 4. Activity (Last 30 days)
@@ -235,7 +265,8 @@ class SpaceService:
                 leaderboard=leaderboard,
                 activity=activity,
                 progress=project_progress,
-                recent_activities=recent_activities
+                recent_activities=recent_activities,
+                is_admin_view=is_admin
             )
         except Exception as e:
             import traceback
