@@ -4,6 +4,7 @@ import { githubApi } from '../../api/github';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import Mermaid from '../../components/Mermaid';
 
 interface ReadmeViewerProps {
     repoId?: string;
@@ -139,11 +140,17 @@ const ReadmeViewerPage: React.FC<ReadmeViewerProps> = ({ repoId: propRepoId, can
                             components={{
                                 code({ node, className, children, ...props }: any) {
                                     const match = /language-(\w+)/.exec(className || '');
+                                    const lang = match ? match[1] : '';
                                     const inline = !match;
+
+                                    if (!inline && lang === 'mermaid') {
+                                        return <Mermaid chart={String(children).replace(/\n$/, '')} />;
+                                    }
+
                                     return !inline ? (
                                         <SyntaxHighlighter
                                             style={vscDarkPlus as any}
-                                            language={match[1]}
+                                            language={lang}
                                             PreTag="div"
                                             {...props}
                                         >
@@ -165,7 +172,6 @@ const ReadmeViewerPage: React.FC<ReadmeViewerProps> = ({ repoId: propRepoId, can
                                 blockquote: ({ node, ...props }: any) => <blockquote className="border-l-4 border-blue-500 pl-4 italic text-slate-400 my-4" {...props} />,
                             }}
                         >
-
                             {content}
                         </ReactMarkdown>
                     </div>
