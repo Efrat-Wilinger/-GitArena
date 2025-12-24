@@ -1,13 +1,8 @@
 import React from 'react';
+import { LanguageStats, CommitStats, PRStats, RepoStats } from '../api/auth';
 
-interface LanguageStats {
-    name: string;
-    percentage: number;
-    color: string;
-}
-
-export const LanguageDistribution: React.FC = () => {
-    const languages: LanguageStats[] = [
+export const LanguageDistribution: React.FC<{ data?: LanguageStats[] }> = ({ data }) => {
+    const languages = data || [
         { name: 'TypeScript', percentage: 45, color: 'bg-blue-500' },
         { name: 'JavaScript', percentage: 25, color: 'bg-blue-400' },
         { name: 'Python', percentage: 20, color: 'bg-blue-600' },
@@ -22,7 +17,7 @@ export const LanguageDistribution: React.FC = () => {
             </h3>
 
             <div className="space-y-4">
-                {languages.map((lang, index) => (
+                {languages.length > 0 ? languages.map((lang, index) => (
                     <div key={index} className="space-y-2">
                         <div className="flex justify-between text-sm">
                             <span className="text-white font-medium">{lang.name}</span>
@@ -35,14 +30,16 @@ export const LanguageDistribution: React.FC = () => {
                             />
                         </div>
                     </div>
-                ))}
+                )) : (
+                    <p className="text-slate-500 text-sm">No language data available</p>
+                )}
             </div>
         </div>
     );
 };
 
-export const RecentCommits: React.FC = () => {
-    const commits = [
+export const RecentCommits: React.FC<{ data?: CommitStats[] }> = ({ data }) => {
+    const commits = data || [
         { message: 'Add user authentication', repo: 'GitArena', time: '2h ago', additions: 45, deletions: 12 },
         { message: 'Fix dashboard layout', repo: 'Frontend', time: '5h ago', additions: 23, deletions: 8 },
         { message: 'Update API endpoints', repo: 'Backend', time: '1d ago', additions: 67, deletions: 34 },
@@ -56,7 +53,7 @@ export const RecentCommits: React.FC = () => {
             </h3>
 
             <div className="space-y-4">
-                {commits.map((commit, index) => (
+                {commits.length > 0 ? commits.map((commit, index) => (
                     <div key={index} className="group p-3 rounded-lg hover:bg-white/5 transition-colors cursor-pointer">
                         <div className="flex items-start justify-between gap-4">
                             <div className="flex-1 min-w-0">
@@ -75,14 +72,16 @@ export const RecentCommits: React.FC = () => {
                             </div>
                         </div>
                     </div>
-                ))}
+                )) : (
+                    <p className="text-slate-500 text-sm">No recent commits</p>
+                )}
             </div>
         </div>
     );
 };
 
-export const PullRequestStatus: React.FC = () => {
-    const stats = [
+export const PullRequestStatus: React.FC<{ data?: PRStats[] }> = ({ data }) => {
+    const stats = data || [
         { label: 'Open', count: 5, color: 'text-blue-400', bgColor: 'bg-blue-500/10' },
         { label: 'Merged', count: 23, color: 'text-blue-400', bgColor: 'bg-blue-500/10' },
         { label: 'Closed', count: 8, color: 'text-slate-400', bgColor: 'bg-slate-500/10' },
@@ -96,7 +95,7 @@ export const PullRequestStatus: React.FC = () => {
             </h3>
 
             <div className="grid grid-cols-3 gap-4">
-                {stats.map((stat, index) => (
+                {stats.length > 0 && stats.map((stat, index) => (
                     <div key={index} className={`${stat.bgColor} rounded-lg p-4 text-center`}>
                         <div className={`text-3xl font-bold ${stat.color} mb-1`}>
                             {stat.count}
@@ -111,8 +110,8 @@ export const PullRequestStatus: React.FC = () => {
     );
 };
 
-export const TopRepositories: React.FC = () => {
-    const repos = [
+export const TopRepositories: React.FC<{ data?: RepoStats[] }> = ({ data }) => {
+    const repos = data || [
         { name: 'GitArena', stars: 1234, language: 'TypeScript', trend: '+12%' },
         { name: 'DevOps-Pipeline', stars: 856, language: 'Python', trend: '+8%' },
         { name: 'Frontend-v2', stars: 542, language: 'JavaScript', trend: '+5%' },
@@ -126,7 +125,7 @@ export const TopRepositories: React.FC = () => {
             </h3>
 
             <div className="space-y-3">
-                {repos.map((repo, index) => (
+                {repos.length > 0 ? repos.map((repo, index) => (
                     <div key={index} className="flex items-center justify-between p-3 rounded-lg hover:bg-white/5 transition-colors cursor-pointer group">
                         <div className="flex items-center gap-3 flex-1">
                             <div className="w-8 h-8 rounded-lg bg-gradient-blue flex items-center justify-center text-white font-bold text-sm">
@@ -149,16 +148,20 @@ export const TopRepositories: React.FC = () => {
                             <span className="text-green-400 text-xs font-medium">{repo.trend}</span>
                         </div>
                     </div>
-                ))}
+                )) : (
+                    <p className="text-slate-500 text-sm">No top repositories</p>
+                )}
             </div>
         </div>
     );
 };
 
-export const WeeklyActivity: React.FC = () => {
+export const WeeklyActivity: React.FC<{ data?: number[] }> = ({ data }) => {
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    const activity = [45, 72, 58, 90, 65, 30, 15]; // commits per day
-    const maxActivity = Math.max(...activity);
+    // If we have data, we assume it matches 7 days ending today.
+    // If not, use mock.
+    const activity = data && data.length === 7 ? data : [45, 72, 58, 90, 65, 30, 15]; // fallback
+    const maxActivity = Math.max(...activity, 1); // prevent div by zero
 
     return (
         <div className="modern-card p-6">

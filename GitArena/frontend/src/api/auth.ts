@@ -40,7 +40,55 @@ export const authApi = {
         return response.data;
     },
 
+    getUserDashboard: async (): Promise<UserDashboardResponse> => {
+        const response = await apiClient.get('/users/dashboard/stats');
+        return response.data;
+    },
+
     logout: () => {
         localStorage.removeItem('token');
     },
 };
+
+export interface LanguageStats {
+    name: string;
+    percentage: number;
+    color: string;
+}
+
+export interface CommitStats {
+    message: string;
+    repo: string;
+    time: string;
+    additions: number;
+    deletions: number;
+}
+
+export interface PRStats {
+    label: string;
+    count: number;
+    color: string;
+    bgColor: string;
+}
+
+export interface RepoStats {
+    name: string;
+    stars: number;
+    language: string;
+    trend: string;
+}
+
+export interface ActivityStats {
+    date: string;
+    count: number;
+    level: 0 | 1 | 2 | 3 | 4;
+}
+
+export interface UserDashboardResponse {
+    languages: LanguageStats[];
+    recent_commits: CommitStats[];
+    pr_status: PRStats[];
+    top_repos: RepoStats[];
+    weekly_activity: number[];
+    heatmap_data: ActivityStats[];
+}

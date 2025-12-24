@@ -13,21 +13,23 @@ export const AnimatedCommitGraph: React.FC<{ repoId?: string }> = ({ repoId }) =
     const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
     useEffect(() => {
-        // TODO: Replace with real API call
         const fetchCommitData = async () => {
-            setLoading(true);
-            // Simulated data - replace with real GitHub API
-            const mockData: CommitData[] = Array.from({ length: 30 }, (_, i) => ({
-                date: new Date(Date.now() - (29 - i) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-                count: Math.floor(Math.random() * 20) + 1,
-                additions: Math.floor(Math.random() * 200),
-                deletions: Math.floor(Math.random() * 100),
-            }));
-
-            setTimeout(() => {
-                setData(mockData);
+            if (!repoId) {
                 setLoading(false);
-            }, 800);
+                return;
+            }
+
+            setLoading(true);
+            try {
+                // TODO: Replace with actual commit activity API endpoint when available
+                // For now, set empty data until the endpoint is implemented
+                setData([]);
+                setLoading(false);
+            } catch (error) {
+                console.error('Error fetching commit data:', error);
+                setData([]);
+                setLoading(false);
+            }
         };
 
         fetchCommitData();

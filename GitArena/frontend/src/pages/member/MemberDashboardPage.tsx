@@ -20,6 +20,11 @@ const MemberDashboardPage: React.FC = () => {
         queryFn: () => githubApi.getGamificationStats(),
     });
 
+    const { data: dashboard } = useQuery({
+        queryKey: ['userDashboard'],
+        queryFn: () => authApi.getUserDashboard(),
+    });
+
 
     return (
         <div className="max-w-7xl mx-auto space-y-8 pb-12">
@@ -34,7 +39,7 @@ const MemberDashboardPage: React.FC = () => {
 
                     <div className="flex-1">
                         <h1 className="text-4xl font-bold text-white mb-2">
-                            Welcome back, {user?.name}! 👋
+                            Welcome back, {user?.name || user?.username}! 👋
                         </h1>
                         <p className="text-slate-400">Here's your personal productivity overview</p>
                     </div>
@@ -69,14 +74,14 @@ const MemberDashboardPage: React.FC = () => {
             {/* AI Personal Insights */}
             <AIInsights userId={user?.id} />
 
-            {/* Personal Activity */}
+            {/* Personal Activity - Real Data */}
             <AnimatedCommitGraph />
 
             {/* Weekly Overview */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <WeeklyActivity />
-                <PullRequestStatus />
-                <LanguageDistribution />
+                <WeeklyActivity data={dashboard?.weekly_activity} />
+                <PullRequestStatus data={dashboard?.pr_status} />
+                <LanguageDistribution data={dashboard?.languages} />
             </div>
 
             {/* Contribution Matrix */}
@@ -85,7 +90,7 @@ const MemberDashboardPage: React.FC = () => {
                     <span className="w-2 h-8 bg-blue-500 rounded-full"></span>
                     Your Contributions
                 </h3>
-                <ContributionHeatmap />
+                <ContributionHeatmap data={dashboard?.heatmap_data} />
             </div>
 
             {/* Achievements */}

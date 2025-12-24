@@ -148,8 +148,15 @@ const ProjectDashboardPage: React.FC = () => {
         total_lines_code: 0
     };
 
+
     const weeklyTarget = 50; // commits per week
-    const currentWeekCommits = Math.floor(overview.total_commits / 4); // mock
+    // Calculate current week commits from actual activity data
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    const currentWeekCommits = (dashboard.activity || [])
+        .filter(a => new Date(a.date) >= oneWeekAgo)
+        .reduce((sum, a) => sum + a.count, 0);
+
 
     const currentProject = userProjects?.find(p => p.id === Number(spaceId));
 

@@ -112,6 +112,160 @@ class UserService:
         return UserResponse.model_validate(user)
 
     
-    def count_registered_users(self) -> int:
-        """Count all registered users"""
-        return self.repository.count_all()
+    def get_user_dashboard_stats(self, user_id: int) -> "UserDashboardResponse":
+        """Get aggregated dashboard stats for a user"""
+        from app.modules.users.dashboard_dto import (
+            UserDashboardResponse, LanguageStats, CommitStats, 
+            PRStats, RepoStats, ActivityStats
+        )
+        from sqlalchemy import desc
+        from datetime import datetime, timedelta
+
+        user = self.get_user_by_id(user_id)
+        
+        # 1. Top Repositories (by stars, then updated_at)
+        repos = self.db.query(Repository).filter(
+            Repository.user_id == user.id
+        ).order_by(desc(Repository.stargazers_count), desc(Repository.updated_at)).limit(3).all()
+        
+        top_repos_data = []
+        for repo in repos:
+            # Simple trend mock or calculation? Let's use mock for now or calculate based on recent activity?
+            # Let's verify if we can query recent activity for this repo
+            recent_commits_count = self.db.query(func.count(Commit.id)).filter(
+                Commit.repository_id == repo.id,
+                Commit.committed_date >= datetime.utcnow() - timedelta(days=7)
+            ).scalar()
+            trend = f"+{recent_commits_count}" if recent_commits_count > 0 else "0"
+            
+            top_repos_data.append(RepoStats(
+                name=repo.name,
+                stars=repo.stargazers_count,
+                language=repo.language or "Unknown",
+                trend=trend
+            ))
+
+        # 2. Recent Commits (Global for user)
+        # Find commits by author email or name
+        commits_query = self.db.query(Commit, Repository).join(Repository).filter(
+            (Commit.author_email == user.email) | (Commit.author_name == user.username)
+        ).order_by(desc(Commit.committed_date)).limit(5).all()
+        
+        recent_commits_data = []
+        for commit, repo in commits_query:
+            # Format time diff
+            diff = datetime.utcnow() - commit.committed_date
+            if diff.days > 0:
+                time_str = f"{diff.days}d ago"
+            elif diff.seconds > 3600:
+                time_str = f"{diff.seconds // 3600}h ago"
+            else:
+                time_str = f"{diff.seconds // 60}m ago"
+                
+            recent_commits_data.append(CommitStats(
+                message=commit.message,
+                repo=repo.name,
+                time=time_str,
+                additions=commit.additions,
+                deletions=commit.deletions
+            ))
+
+        # 3. Language Distribution (Aggregate from all user repos)
+        # Verify if we have language data. GitHub API returns map per repo.
+        # We stored primary language in Repository table.
+        # For better accuracy we would need a separate table for repo languages, but let's use primary for now.
+        lang_counts = self.db.query(
+            Repository.language, func.count(Repository.id)
+        ).filter(
+            Repository.user_id == user.id,
+            Repository.language.isnot(None)
+        ).group_by(Repository.language).all()
+        
+        total_repos_count = sum(c for _, c in lang_counts)
+        language_data = []
+        COLORS = ['bg-blue-500', 'bg-blue-400', 'bg-blue-600', 'bg-indigo-500', 'bg-sky-500']
+        
+        for i, (lang, count) in enumerate(lang_counts):
+            percentage = (count / total_repos_count * 100) if total_repos_count > 0 else 0
+            language_data.append(LanguageStats(
+                name=lang,
+                percentage=round(percentage, 1),
+                color=COLORS[i % len(COLORS)]
+            ))
+            
+        # 4. PR Status
+        open_prs = self.db.query(func.count(PullRequest.id)).filter(PullRequest.author == user.username, PullRequest.state == 'open').scalar() or 0
+        merged_prs = self.db.query(func.count(PullRequest.id)).filter(PullRequest.author == user.username, PullRequest.state == 'closed', PullRequest.merged_at.isnot(None)).scalar() or 0
+        closed_prs = self.db.query(func.count(PullRequest.id)).filter(PullRequest.author == user.username, PullRequest.state == 'closed', PullRequest.merged_at.is_(None)).scalar() or 0
+        
+        pr_status_data = [
+            PRStats(label='Open', count=open_prs, color='text-blue-400', bgColor='bg-blue-500/10'),
+            PRStats(label='Merged', count=merged_prs, color='text-green-400', bgColor='bg-green-500/10'), # Changed color to green for merged
+            PRStats(label='Closed', count=closed_prs, color='text-slate-400', bgColor='bg-slate-500/10'),
+        ]
+
+        # 5. Weekly Activity (last 7 days commit counts)
+        weekly_activity = []
+        today = datetime.utcnow().date()
+        # Ensure we align with Monday-Sunday or just last 7 days? Frontend expects 7 values.
+        # Let's do last 7 days ending today.
+        for i in range(6, -1, -1):
+            date = today - timedelta(days=i)
+            # Count commits for this day
+            count = self.db.query(func.count(Commit.id)).filter(
+                (Commit.author_email == user.email) | (Commit.author_name == user.username),
+                func.date(Commit.committed_date) == date
+            ).scalar() or 0
+            weekly_activity.append(count)
+
+        # 6. Heatmap Data (last 365 days)
+        # Optimize: Group by date query
+        year_ago = today - timedelta(days=365)
+        heatmap_query = self.db.query(
+            func.date(Commit.committed_date).label('date'),
+            func.count(Commit.id).label('count')
+        ).filter(
+            (Commit.author_email == user.email) | (Commit.author_name == user.username),
+            Commit.committed_date >= year_ago
+        ).group_by(func.date(Commit.committed_date)).all()
+        
+        heatmap_data = []
+        # Convert query result to map for easy lookup
+        heatmap_map = {str(row.date): row.count for row in heatmap_query}
+        
+        # We need to fill in zeros? Or frontend handles sparse data? Frontend handles it if we pass array of days.
+        # Actually standard heatmap usually expects sparse data or full data depending on implementation.
+        # Our ContributionHeatmap component expects array of ContributionDay.
+        
+        # Let's iterate and build
+        current = year_ago
+        while current <= today:
+            d_str = str(current)
+            count = heatmap_map.get(d_str, 0)
+            level = 0
+            if count > 0:
+                if count < 3: level = 1
+                elif count < 6: level = 2
+                elif count < 10: level = 3
+                else: level = 4
+            
+            # To reduce payload size, maybe only send days with > 0? 
+            # Frontend generates sample data if empty, but if we provide data, does it merge?
+            # Looking at frontend code: "const contributions = data || generateSampleData();"
+            # So we should provide full data or at least enough.
+            
+            heatmap_data.append(ActivityStats(
+                date=d_str,
+                count=count,
+                level=level
+            ))
+            current += timedelta(days=1)
+            
+        return UserDashboardResponse(
+            languages=language_data,
+            recent_commits=recent_commits_data,
+            pr_status=pr_status_data,
+            top_repos=top_repos_data,
+            weekly_activity=weekly_activity,
+            heatmap_data=heatmap_data
+        )

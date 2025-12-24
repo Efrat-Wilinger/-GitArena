@@ -45,3 +45,14 @@ async def get_user(
     """Get user by ID"""
     service = UserService(db)
     return service.get_user_by_id(user_id)
+
+
+@router.get("/dashboard/stats", response_model=None)
+async def get_user_dashboard(
+    db: Session = Depends(get_db),
+    current_user: UserResponse = Depends(get_current_user)
+):
+    """Get dashboard analytics for the current user"""
+    from app.modules.users.dashboard_dto import UserDashboardResponse
+    service = UserService(db)
+    return service.get_user_dashboard_stats(current_user.id)

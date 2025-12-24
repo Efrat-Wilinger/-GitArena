@@ -17,12 +17,12 @@ depends_on = None
 
 
 def upgrade():
-    # Add profile fields to users table
-    op.add_column('users', sa.Column('bio', sa.String(), nullable=True))
-    op.add_column('users', sa.Column('location', sa.String(), nullable=True))
-    op.add_column('users', sa.Column('company', sa.String(), nullable=True))
-    op.add_column('users', sa.Column('blog', sa.String(), nullable=True))
-    op.add_column('users', sa.Column('twitter_username', sa.String(), nullable=True))
+    # Add profile fields to users table (with IF NOT EXISTS to handle existing columns)
+    op.execute('ALTER TABLE users ADD COLUMN IF NOT EXISTS bio VARCHAR')
+    op.execute('ALTER TABLE users ADD COLUMN IF NOT EXISTS location VARCHAR')
+    op.execute('ALTER TABLE users ADD COLUMN IF NOT EXISTS company VARCHAR')
+    op.execute('ALTER TABLE users ADD COLUMN IF NOT EXISTS blog VARCHAR')
+    op.execute('ALTER TABLE users ADD COLUMN IF NOT EXISTS twitter_username VARCHAR')
 
 
 def downgrade():

@@ -1,85 +1,176 @@
-# GitArena 🏟️
+# 🏟️ GitArena
 
-GitArena is a gamified analytics platform for GitHub repositories. It turns your coding activity into a game, tracking stats, achievements, and providing AI-driven insights.
+> **Where Code Meets Gaming.** Transform your development workflow into an immersive RPG experience.
 
-## 🚀 Quick Start (Recommended)
-
-The easiest way to run the project is using Docker Compose.
-
-### Prerequisites
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running.
-
-### Installation Steps
-
-1. **Clone the repository**
-   ```bash
-   git clone <repository_url>
-   cd GitArena
-   ```
-
-2. **Environment Setup**
-   * **Backend**: Copy `.env.example` to `.env` in the `backend` folder.
-     ```bash
-     cd backend
-     cp .env.example .env
-     ```
-     Edit `.env` and add your `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, and `OPENAI_API_KEY`.
-   
-   * **Frontend**: Copy `.env.example` to `.env` in the `frontend` folder (if applicable) or ensure `VITE_API_TARGET` is set in `docker-compose.yml`.
-
-3. **Run with Docker**
-   Return to the root directory and run:
-   ```bash
-   docker-compose up --build
-   ```
-
-4. **Access the App**
-   - **Frontend**: [http://localhost:3000](http://localhost:3000)
-   - **Backend API**: [http://localhost:8000/docs](http://localhost:8000/docs)
-   - **PgAdmin (Database UI)**: [http://localhost:5050](http://localhost:5050)
-     - Email: `efrat.wilinger@gmail.com`
-     - Password: `12345`
+![Status](https://img.shields.io/badge/Status-Online-success?style=for-the-badge&logo=statuspage)
+![Stack](https://img.shields.io/badge/Stack-Fullstack-blue?style=for-the-badge&logo=react)
+![License](https://img.shields.io/badge/License-MIT-purple?style=for-the-badge)
 
 ---
 
-## 🛠️ Database Setup & Troubleshooting
+## 🌟 Introduction
 
-### "Failed to load commits" Error
-If you see an error about `UndefinedColumn` or "Failed to load commits" (specifically missing `diff_data`), it means your database schema needs to be updated.
+**GitArena** isn't just a dashboard; it's a **productivity engine**. By Gamifying the software development lifecycle, we turn every commit, pull request, and code review into a quest for excellence.
 
-**Fix:**
-Run the following command in a new terminal window (while Docker is running):
+Elevate your engineering team's performance with:
+*   **XP & Leveling System**: Get rewarded for consistent, high-quality contributions.
+*   **AI Dungeon Master**: Our LLM-powered engine analyzes your code and provides "loot" (insights) and "quests" (challenges).
+*   **Team Raids**: Collaborate to clear technical debt and ship features.
 
-```bash
-docker-compose exec backend python add_diff_column.py
+---
+
+## 🏗️ Architecture & Schema
+
+We believe in **Transparent Architecture**. Here is the blueprint of our world.
+
+### 🧠 The Neural Core (Database Schema)
+
+A live visualization of our data relationships. The `User` is at the center of the universe, commanding `Repositories` and joining `Spaces`.
+
+```mermaid
+erDiagram
+    User ||--o{ Repository : owns
+    User ||--o{ Space : owns
+    User ||--o{ Commit : authors
+    User ||--o{ PullRequest : creates
+    User ||--o{ Issue : opens
+    
+    Space ||--o{ SpaceMember : contains
+    Space ||--o{ Repository : manages
+    
+    Repository ||--o{ Commit : tracks
+    Repository ||--o{ PullRequest : receives
+    Repository ||--o{ Issue : lists
+    Repository ||--o{ Release : publishes
+    Repository ||--o{ Deployment : deploys
+    
+    PullRequest ||--o{ Review : has
+    
+    User {
+        int id
+        string username
+        string github_login
+        int level
+        int xp
+    }
+    
+    Repository {
+        int id
+        string name
+        string language
+        int stars
+    }
+    
+    Space {
+        int id
+        string name
+        string description
+    }
 ```
 
-This script will automatically detect and add the missing column to your database.
+### ⚡ System Flow
+
+How data flows from GitHub to your screen:
+
+```mermaid
+graph LR
+    GH[GitHub API] -->|Sync| BE[Backend Service]
+    BE -->|Store| DB[(PostgreSQL)]
+    BE -->|Analyze| AI[OpenAI / LLM]
+    AI -->|Insights| DB
+    BE -->|Serve| FE[React Frontend]
+    FE -->|Visualize| User[Developer]
+    
+    style GH fill:#333,stroke:#fff,color:#fff
+    style BE fill:#2d6a4f,stroke:#fff,color:#fff
+    style DB fill:#0077b6,stroke:#fff,color:#fff
+    style AI fill:#d00000,stroke:#fff,color:#fff
+    style FE fill:#e0aaff,stroke:#333,color:#000
+```
 
 ---
 
-## 💻 Local Development (Manual)
+## 🚀 Speed Run (Quick Start)
 
-If you prefer running without Docker:
+Get access to the arena in less than 5 minutes.
 
-### Backend
-1. Python 3.12+ required.
-2. Navigate to `backend`.
-3. Create venv: `python -m venv venv` and activate it.
-4. Install reqs: `pip install -r requirements.txt`.
-5. Ensure PostgreSQL is running locally.
-6. Run: `python run.py` (or `uvicorn app.main:app --reload`).
+### 📋 Prerequisites
+*   [Docker Desktop](https://www.docker.com/products/docker-desktop/) 🐳
+*   GitHub OAuth App Credentials 🔑
 
-### Frontend
-1. Node.js 18+ required.
-2. Navigate to `frontend`.
-3. Install: `npm install`.
-4. Run: `npm run dev`.
+### 🎮 Press Start
+1.  **Summon the Code**
+    ```bash
+    git clone <repo_url>
+    cd GitArena
+    ```
 
-## 🤝 Contributing
-1. Create a branch.
-2. Make changes.
-3. Submit a Pull Request.
+2.  **Equip Items (Config)**
+    ```bash
+    # Backend Setup
+    cd backend
+    cp .env.example .env
+    # EDIT .env with your keys!
+    
+    # Frontend Setup
+    cd ../frontend
+    cp .env.example .env
+    ```
 
-## 📄 API Documentation
-Full API documentation is available at [http://localhost:8000/docs](http://localhost:8000/docs) when the backend is running.
+3.  **Launch Server**
+    ```bash
+    cd ..
+    docker-compose up --build
+    ```
+
+4.  **Enter the Arena**
+    *   **Frontend**: [http://localhost:3000](http://localhost:3000)
+    *   **Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
+
+---
+
+## � Workflow: Database Migrations
+
+Keep the realm synchronized. We use **Alembic** for schema evolution.
+
+> **Visual Guide**: `Model Change` -> `Migration Script` -> `Apply to DB`
+
+### How to Introduce New Content (Tables/Columns)
+
+1.  **Design**: Edit `backend/app/shared/models.py`.
+2.  **Manifest**: Create the migration spell.
+    ```bash
+    # Inside backend container/venv
+    alembic revision --autogenerate -m "Summon new table"
+    ```
+3.  **Sync**: Push the new file in `migrations/versions/` to Git.
+4.  **Refresh**: Restart your container to apply.
+
+---
+
+## 🛠️ The Armory (Tech Stack)
+
+| Component | Tech | Description |
+|-----------|------|-------------|
+| **Core** | ![Python](https://img.shields.io/badge/Python-3.12-blue) | The brain of the operation. |
+| **API** | ![FastAPI](https://img.shields.io/badge/FastAPI-0.109-green) | High-speed magic. |
+| **UI** | ![React](https://img.shields.io/badge/React-18-cyan) | Reactive crystalline interface. |
+| **Data** | ![Postgres](https://img.shields.io/badge/PostgreSQL-16-blue) | Persistent memory vault. |
+| **Infra** | ![Docker](https://img.shields.io/badge/Docker-Compose-blue) | Containerized deployment units. |
+
+---
+
+## 🤝 Join the Party
+
+We are looking for contributors!
+1.  Fork the Quest.
+2.  Create your Feature Branch (`git checkout -b feature/EpicLoot`).
+3.  Commit your Changes (`git commit -m 'Add EpicLoot'`).
+4.  Push to the Branch (`git push origin feature/EpicLoot`).
+5.  Open a Pull Request.
+
+---
+
+<p align="center">
+  Made with ⚔️ and 🛡️ by the <b>GitArena Team</b>
+</p>
