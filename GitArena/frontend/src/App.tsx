@@ -7,9 +7,9 @@ import CommitsPage from '@/pages/CommitsPage';
 import RepositoryCodePage from './pages/RepositoryCodePage';
 import ProjectsPage from './pages/ProjectsPage';
 import CreateProjectPage from './pages/CreateProjectPage';
-import ProjectDashboardPage from './pages/ProjectDashboardPage';
 import ProjectSelectionPage from './pages/ProjectSelectionPage';
 import Layout from './components/Layout';
+import ProtectedRoute from './components/ProtectedRoute';
 import { useUserRole } from './components/RoleBasedView';
 import { ProjectProvider } from './contexts/ProjectContext';
 
@@ -27,6 +27,7 @@ import AchievementsPage from './pages/member/AchievementsPage';
 // Shared pages
 import ProfilePage from '@/pages/ProfilePage';
 import ReadmeViewerPage from './pages/shared/ReadmeViewerPage';
+import RoleBasedProjectRedirect from './components/RoleBasedProjectRedirect';
 
 const queryClient = new QueryClient();
 
@@ -56,20 +57,52 @@ function App() {
                             {/* Project Selection Welcome Screen */}
                             <Route index element={<ProjectSelectionPage />} />
 
-                            {/* Manager Routes */}
+                            {/* Manager Routes - Protected */}
                             <Route path="manager">
-                                <Route path="dashboard" element={<ProfilePage />} />
-                                <Route path="team" element={<TeamManagementPage />} />
-                                <Route path="activity" element={<ActivityJournalPage />} />
-                                <Route path="analytics" element={<AnalyticsPage />} />
-                                <Route path="settings" element={<SettingsPage />} />
+                                <Route path="dashboard" element={
+                                    <ProtectedRoute requiredRole="manager">
+                                        <ProfilePage />
+                                    </ProtectedRoute>
+                                } />
+                                <Route path="team" element={
+                                    <ProtectedRoute requiredRole="manager">
+                                        <TeamManagementPage />
+                                    </ProtectedRoute>
+                                } />
+                                <Route path="activity" element={
+                                    <ProtectedRoute requiredRole="manager">
+                                        <ActivityJournalPage />
+                                    </ProtectedRoute>
+                                } />
+                                <Route path="analytics" element={
+                                    <ProtectedRoute requiredRole="manager">
+                                        <AnalyticsPage />
+                                    </ProtectedRoute>
+                                } />
+                                <Route path="settings" element={
+                                    <ProtectedRoute requiredRole="manager">
+                                        <SettingsPage />
+                                    </ProtectedRoute>
+                                } />
                             </Route>
 
-                            {/* Member Routes */}
+                            {/* Member Routes - Protected */}
                             <Route path="member">
-                                <Route path="dashboard" element={<MemberDashboardPage />} />
-                                <Route path="my-work" element={<MyWorkPage />} />
-                                <Route path="achievements" element={<AchievementsPage />} />
+                                <Route path="dashboard" element={
+                                    <ProtectedRoute requiredRole="member">
+                                        <MemberDashboardPage />
+                                    </ProtectedRoute>
+                                } />
+                                <Route path="my-work" element={
+                                    <ProtectedRoute requiredRole="member">
+                                        <MyWorkPage />
+                                    </ProtectedRoute>
+                                } />
+                                <Route path="achievements" element={
+                                    <ProtectedRoute requiredRole="member">
+                                        <AchievementsPage />
+                                    </ProtectedRoute>
+                                } />
                             </Route>
 
                             {/* Shared Routes */}
@@ -79,7 +112,7 @@ function App() {
                             <Route path="repositories/:repoId/code" element={<RepositoryCodePage />} />
                             <Route path="projects" element={<ProjectsPage />} />
                             <Route path="projects/new" element={<CreateProjectPage />} />
-                            <Route path="projects/:spaceId" element={<ProjectDashboardPage />} />
+                            <Route path="projects/:spaceId" element={<RoleBasedProjectRedirect />} />
 
                             {/* Legacy profile route - redirect based on role */}
                             <Route path="profile" element={<RoleBasedDashboard />} />
@@ -92,3 +125,4 @@ function App() {
 }
 
 export default App;
+
