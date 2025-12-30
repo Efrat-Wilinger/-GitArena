@@ -5,6 +5,8 @@ import CallbackPage from '@/pages/CallbackPage';
 import RepositoriesPage from '@/pages/RepositoriesPage';
 import CommitsPage from '@/pages/CommitsPage';
 import RepositoryCodePage from './pages/RepositoryCodePage';
+import RepositoryTeamAnalysisPage from './pages/RepositoryTeamAnalysisPage';
+import AIFeedbackHistoryPage from './pages/AIFeedbackHistoryPage';
 import ProjectsPage from './pages/ProjectsPage';
 import CreateProjectPage from './pages/CreateProjectPage';
 import ProjectDashboardPage from './pages/ProjectDashboardPage';
@@ -75,8 +77,10 @@ function App() {
                             {/* Shared Routes */}
                             <Route path="readme/:repoId" element={<ReadmeViewerPage />} />
                             <Route path="repositories" element={<RepositoriesPage />} />
-                            <Route path="repositories/:repoId/commits" element={<CommitsPage />} />
-                            <Route path="repositories/:repoId/code" element={<RepositoryCodePage />} />
+                            <Route path="repositories/:repositoryId/commits" element={<CommitsPage />} />
+                            <Route path="repositories/:repositoryId/code" element={<RepositoryCodePage />} />
+                            <Route path="repositories/:repositoryId/team-analysis" element={<RepositoryTeamAnalysisPage />} />
+                            <Route path="ai-feedback-history" element={<AIFeedbackHistoryPage />} />
                             <Route path="projects" element={<ProjectsPage />} />
                             <Route path="projects/new" element={<CreateProjectPage />} />
                             <Route path="projects/:spaceId" element={<ProjectDashboardPage />} />
