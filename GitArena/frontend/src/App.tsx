@@ -13,6 +13,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import { useUserRole } from './components/RoleBasedView';
 import { ProjectProvider } from './contexts/ProjectContext';
 
+
 // Manager pages
 import TeamManagementPage from './pages/manager/TeamManagementPage';
 import ActivityJournalPage from './pages/manager/ActivityJournalPage';
