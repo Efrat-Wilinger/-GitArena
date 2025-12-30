@@ -1,10 +1,16 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
+import apiClient from '../api/client';
+
+export type UserRole = 'manager' | 'member' | null;
 
 interface ProjectContextType {
     currentProjectId: number | null;
     setCurrentProjectId: (id: number | null) => void;
     currentProjectName: string | null;
     setCurrentProjectName: (name: string | null) => void;
+    currentUserRole: UserRole;
+    setCurrentUserRole: (role: UserRole) => void;
+    fetchAndSetUserRole: (projectId: number) => Promise<void>;
 }
 
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
@@ -17,6 +23,11 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
 
     const [currentProjectName, setCurrentProjectNameState] = useState<string | null>(() => {
         return localStorage.getItem('currentProjectName');
+    });
+
+    const [currentUserRole, setCurrentUserRoleState] = useState<UserRole>(() => {
+        const saved = localStorage.getItem('currentUserRole');
+        return (saved as UserRole) || null;
     });
 
     const setCurrentProjectId = (id: number | null) => {
@@ -37,12 +48,35 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
         }
     };
 
+    const setCurrentUserRole = (role: UserRole) => {
+        setCurrentUserRoleState(role);
+        if (role !== null) {
+            localStorage.setItem('currentUserRole', role);
+        } else {
+            localStorage.removeItem('currentUserRole');
+        }
+    };
+
+    const fetchAndSetUserRole = async (projectId: number) => {
+        try {
+            const response = await apiClient.get(`/spaces/${projectId}/my-role`);
+            const role = response.data.role as UserRole;
+            setCurrentUserRole(role);
+        } catch (error) {
+            console.error('Failed to fetch user role:', error);
+            setCurrentUserRole(null);
+        }
+    };
+
     return (
         <ProjectContext.Provider value={{
             currentProjectId,
             setCurrentProjectId,
             currentProjectName,
-            setCurrentProjectName
+            setCurrentProjectName,
+            currentUserRole,
+            setCurrentUserRole,
+            fetchAndSetUserRole
         }}>
             {children}
         </ProjectContext.Provider>

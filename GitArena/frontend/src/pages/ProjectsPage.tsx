@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../api/client';
 import Button from '../components/Button';
+import { useProject } from '../contexts/ProjectContext';
 
 interface Space {
     id: number;
@@ -16,6 +17,7 @@ const ProjectsPage: React.FC = () => {
     const navigate = useNavigate();
     const [searchQuery, setSearchQuery] = useState('');
     const [sortBy, setSortBy] = useState<'name' | 'members' | 'date'>('date');
+    const { setCurrentProjectId, setCurrentProjectName, fetchAndSetUserRole } = useProject();
 
     const { data: spaces, isLoading } = useQuery<Space[]>({
         queryKey: ['spaces'],
@@ -24,6 +26,33 @@ const ProjectsPage: React.FC = () => {
             return response.data;
         },
     });
+
+    const handleProjectClick = async (space: Space) => {
+        // Set project context
+        setCurrentProjectId(space.id);
+        setCurrentProjectName(space.name);
+
+        // Fetch role and redirect based on it
+        try {
+            const roleResponse = await apiClient.get(`/spaces/${space.id}/my-role`);
+            const role = roleResponse.data.role;
+
+            // Save to context
+            await fetchAndSetUserRole(space.id);
+
+            // Redirect based on role
+            if (role === 'manager') {
+                navigate('/manager/dashboard');
+            } else {
+                navigate('/member/dashboard');
+            }
+        } catch (error) {
+            console.error('Failed to fetch role:', error);
+            // Fallback to old behavior
+            navigate(`/projects/${space.id}`);
+        }
+    };
+
 
     if (isLoading) {
         return (
@@ -152,7 +181,7 @@ const ProjectsPage: React.FC = () => {
                 {sortedSpaces.map((space, index) => (
                     <div
                         key={space.id}
-                        onClick={() => navigate(`/projects/${space.id}`)}
+                        onClick={() => handleProjectClick(space)}
                         className="group relative bg-gray-800/50 backdrop-blur-xl border border-gray-700 rounded-xl p-6 hover:border-cyan-500/50 transition-all duration-300 cursor-pointer card-hover-lift overflow-hidden"
                         style={{ animation: `slideInUp 0.4s ease-out ${0.1 * index}s both` }}
                     >
@@ -184,8 +213,8 @@ const ProjectsPage: React.FC = () => {
                                     <div className="flex -space-x-2">
                                         {[...Array(Math.min(space.members_count, 3))].map((_, i) => (
                                             <div key={i} className={`w-7 h-7 rounded-full bg-gradient-to-br ${i === 0 ? 'from-cyan-500 to-blue-600' :
-                                                    i === 1 ? 'from-purple-500 to-pink-600' :
-                                                        'from-orange-500 to-red-600'
+                                                i === 1 ? 'from-purple-500 to-pink-600' :
+                                                    'from-orange-500 to-red-600'
                                                 } border-2 border-gray-800 flex items-center justify-center text-white text-xs font-bold`}>
                                                 {String.fromCharCode(65 + i)}
                                             </div>

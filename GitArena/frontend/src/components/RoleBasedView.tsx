@@ -1,6 +1,5 @@
 import React from 'react';
-
-export type UserRole = 'manager' | 'member';
+import { useProject, UserRole } from '../contexts/ProjectContext';
 
 interface RoleBasedViewProps {
     role: UserRole;
@@ -17,13 +16,10 @@ export const RoleBasedView: React.FC<RoleBasedViewProps> = ({ role, managerView,
 };
 
 export const useUserRole = (): UserRole => {
-    // TODO: Get real role from API/context
-    // For now, determine from localStorage or user data
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-
-    // Determine if user is manager based on project creator
-    // This should come from the backend
-    return user.isProjectCreator ? 'manager' : 'member';
+    const { currentUserRole } = useProject();
+    return currentUserRole || 'member'; // Default to 'member' if no role set
 };
+
+export type { UserRole };
 
 export default RoleBasedView;

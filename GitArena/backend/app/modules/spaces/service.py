@@ -3,6 +3,7 @@ from sqlalchemy import func, desc
 from app.modules.spaces.repository import SpaceRepository
 from app.modules.spaces.dto import SpaceCreate, SpaceResponse, SpaceDashboardResponse, DashboardStats, LanguageStats, ContributorStats, ActivityStats, ProjectProgress
 from app.modules.github.service import GitHubService
+from app.modules.github.dto import ActivityResponse
 from app.modules.users.repository import UserRepository
 from app.shared.models import User, Commit, PullRequest, Issue, Release, Deployment, Activity
 from app.shared.exceptions import NotFoundException
@@ -59,6 +60,34 @@ class SpaceService:
     def get_my_spaces(self, user_id: int) -> List[SpaceResponse]:
         spaces = self.repository.get_user_spaces(user_id)
         return [SpaceResponse.model_validate(s) for s in spaces]
+
+    def get_user_role_in_project(self, space_id: int, user_id: int) -> str:
+        """Get user's role in a specific project. Returns 'manager' or 'member'"""
+        from app.shared.models import SpaceMember
+        
+        space = self.repository.get_space_by_id(space_id)
+        if not space:
+            raise NotFoundException("Space not found")
+        
+        # Check if user is owner
+        if space.owner_id == user_id:
+            return "manager"
+        
+        # Check user's role in space_members
+        user_member = self.db.query(SpaceMember).filter(
+            SpaceMember.space_id == space_id,
+            SpaceMember.user_id == user_id
+        ).first()
+        
+        if not user_member:
+            raise NotFoundException("Not a member of this project")
+        
+        # If role is 'admin' or 'manager', return 'manager', otherwise 'member'
+        if user_member.role in ['admin', 'manager']:
+            return "manager"
+        else:
+            return "member"
+
 
     async def get_dashboard_stats(self, space_id: int, user_id: int, access_token: str) -> SpaceDashboardResponse:
         from app.shared.models import SpaceMember

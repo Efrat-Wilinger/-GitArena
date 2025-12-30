@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../api/client';
 import { authApi, User } from '../api/auth';
-import { useUserRole } from '../components/RoleBasedView';
+import { useProject } from '../contexts/ProjectContext';
 
 interface Space {
     id: number;
@@ -15,7 +15,7 @@ interface Space {
 
 const ProjectSelectionPage: React.FC = () => {
     const navigate = useNavigate();
-    const userRole = useUserRole();
+    const { setCurrentProjectId, setCurrentProjectName, fetchAndSetUserRole, currentUserRole } = useProject();
 
     const { data: user } = useQuery<User>({
         queryKey: ['currentUser'],
@@ -37,9 +37,32 @@ const ProjectSelectionPage: React.FC = () => {
         )[0]
         : null;
 
-    const handleContinue = () => {
+    const handleContinue = async () => {
+        console.log('🔵 handleContinue called!', mostRecentProject);
         if (mostRecentProject) {
-            navigate(`/projects/${mostRecentProject.id}`);
+            // Set project context
+            setCurrentProjectId(mostRecentProject.id);
+            setCurrentProjectName(mostRecentProject.name);
+
+            // Fetch role and redirect
+            try {
+                console.log('🟢 Fetching role for project:', mostRecentProject.id);
+                const roleResponse = await apiClient.get(`/spaces/${mostRecentProject.id}/my-role`);
+                const role = roleResponse.data.role;
+                console.log('🟢 Role received:', role);
+                await fetchAndSetUserRole(mostRecentProject.id);
+
+                if (role === 'manager') {
+                    console.log('🟢 Redirecting to /manager/dashboard');
+                    navigate('/manager/dashboard');
+                } else {
+                    console.log('🟢 Redirecting to /member/dashboard');
+                    navigate('/member/dashboard');
+                }
+            } catch (error) {
+                console.error('🔴 Failed to fetch role:', error);
+                navigate('/projects');
+            }
         } else {
             // If no projects exist, go to projects page
             navigate('/projects');
@@ -55,8 +78,10 @@ const ProjectSelectionPage: React.FC = () => {
     };
 
     const handleGoToDashboard = () => {
-        navigate(userRole === 'manager' ? '/manager/dashboard' : '/member/dashboard');
+        // Use current role if available, otherwise default to member
+        navigate(currentUserRole === 'manager' ? '/manager/dashboard' : '/member/dashboard');
     };
+
 
     if (isLoading) {
         return (

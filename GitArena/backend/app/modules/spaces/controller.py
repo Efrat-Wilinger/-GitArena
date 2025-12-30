@@ -52,6 +52,18 @@ async def get_space_dashboard(
     return await service.get_dashboard_stats(space_id, current_user.id, user.access_token)
 
 
+@router.get("/{space_id}/my-role")
+async def get_my_role_in_project(
+    space_id: int,
+    current_user: UserResponse = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get current user's role in a specific project"""
+    service = SpaceService(db)
+    role = service.get_user_role_in_project(space_id, current_user.id)
+    return {"role": role, "space_id": space_id}
+
+
 @router.get("/projects/{project_id}/members")
 async def get_project_members(
     project_id: int,
