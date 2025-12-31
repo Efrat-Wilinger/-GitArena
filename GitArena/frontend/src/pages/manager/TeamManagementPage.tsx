@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { githubApi } from '../../api/github';
+import { useProject } from '../../contexts/ProjectContext';
 
 interface TeamMember {
     id: string;
@@ -18,14 +19,17 @@ interface TeamMember {
 }
 
 const TeamManagementPage: React.FC = () => {
+    const { currentProjectId } = useProject();
     const [members, setMembers] = useState<TeamMember[]>([]);
-    const [projectId] = useState('1'); // TODO: Get from context or URL
 
 
     useEffect(() => {
         const fetchMembers = async () => {
+            if (!currentProjectId) return;
+
             try {
-                const data = await githubApi.getTeamMembers(projectId);
+                // Fetch project-specific members
+                const data = await githubApi.getTeamMembers(currentProjectId.toString());
                 // Map API data to component state
                 const mappedMembers = data.map((m: any) => ({
                     ...m,
@@ -40,7 +44,7 @@ const TeamManagementPage: React.FC = () => {
         };
 
         fetchMembers();
-    }, [projectId]);
+    }, [currentProjectId]);
 
     const [showAddModal, setShowAddModal] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
@@ -48,12 +52,13 @@ const TeamManagementPage: React.FC = () => {
     const [newMemberRole, setNewMemberRole] = useState<'member' | 'manager'>('member');
 
     const handleAddMember = async () => {
+        if (!currentProjectId) return;
         try {
-            await githubApi.addTeamMember(projectId, newMemberUsername, newMemberRole);
+            await githubApi.addTeamMember(currentProjectId.toString(), newMemberUsername, newMemberRole);
             setShowAddModal(false);
             setNewMemberUsername('');
             // Re-fetch members
-            const data = await githubApi.getTeamMembers(projectId);
+            const data = await githubApi.getTeamMembers(currentProjectId.toString());
             setMembers(data.map((m: any) => ({ ...m, status: 'active' as const })));
         } catch (error) {
             alert('Failed to add member. Make sure the username exists.');
@@ -61,15 +66,26 @@ const TeamManagementPage: React.FC = () => {
     };
 
     const handleRemoveMember = async (userId: string) => {
+        if (!currentProjectId) return;
         if (window.confirm('Are you sure you want to remove this member?')) {
             try {
-                await githubApi.removeTeamMember(projectId, userId);
+                await githubApi.removeTeamMember(currentProjectId.toString(), userId);
                 setMembers(prev => prev.filter(m => m.id !== userId));
             } catch (error) {
                 alert('Failed to remove member.');
             }
         }
     };
+
+    if (!currentProjectId) {
+        return (
+            <div className="flex flex-col items-center justify-center p-12 text-center">
+                <div className="text-4xl mb-4">📂</div>
+                <h3 className="text-xl font-bold text-white mb-2">No Project Selected</h3>
+                <p className="text-slate-400">Please select a project from the top bar to manage the team.</p>
+            </div>
+        );
+    }
 
 
     const filteredMembers = members.filter(m =>

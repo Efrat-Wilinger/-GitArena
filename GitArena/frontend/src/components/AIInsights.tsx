@@ -21,6 +21,14 @@ export const AIInsights: React.FC<{ userId?: number }> = ({ userId }) => {
             setLoading(true);
             try {
                 const data = await githubApi.getAIInsights(userId);
+
+                // Safety check: Ensure data is an array
+                if (!Array.isArray(data)) {
+                    console.warn('AI Insights response was not an array:', data);
+                    setInsights([]);
+                    return;
+                }
+
                 // Map icons based on type
                 const insightsWithIcons = data.map(insight => ({
                     ...insight,

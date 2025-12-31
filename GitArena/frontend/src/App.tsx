@@ -1,10 +1,12 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import LoginPage from './pages/LoginPage';
 import CallbackPage from '@/pages/CallbackPage';
 import RepositoriesPage from '@/pages/RepositoriesPage';
 import CommitsPage from '@/pages/CommitsPage';
 import RepositoryCodePage from './pages/RepositoryCodePage';
+import RepositoryTeamAnalysisPage from './pages/RepositoryTeamAnalysisPage';
+import AIFeedbackHistoryPage from './pages/AIFeedbackHistoryPage';
 import ProjectsPage from './pages/ProjectsPage';
 import CreateProjectPage from './pages/CreateProjectPage';
 import ProjectSelectionPage from './pages/ProjectSelectionPage';
@@ -37,6 +39,11 @@ const ProtectedLayout = () => {
     return isAuthenticated ? <Layout /> : <Navigate to="/login" replace />;
 };
 
+const CleanProtectedLayout = () => {
+    const isAuthenticated = !!localStorage.getItem('token');
+    return isAuthenticated ? <Outlet /> : <Navigate to="/login" replace />;
+};
+
 // Role-based redirect for legacy routes
 const RoleBasedDashboard = () => {
     const role = useUserRole();
@@ -54,10 +61,13 @@ function App() {
                         <Route path="/login" element={<LoginPage />} />
                         <Route path="/auth/callback" element={<CallbackPage />} />
 
-                        <Route path="/" element={<ProtectedLayout />}>
-                            {/* Project Selection Welcome Screen */}
-                            <Route index element={<ProjectSelectionPage />} />
+                        {/* Clean Layout for Selection Page */}
+                        <Route element={<CleanProtectedLayout />}>
+                            <Route path="/" element={<ProjectSelectionPage />} />
+                        </Route>
 
+                        {/* Main App Layout */}
+                        <Route element={<ProtectedLayout />}>
                             {/* Manager Routes - Protected */}
                             <Route path="manager">
                                 <Route path="dashboard" element={
@@ -109,8 +119,10 @@ function App() {
                             {/* Shared Routes */}
                             <Route path="readme/:repoId" element={<ReadmeViewerPage />} />
                             <Route path="repositories" element={<RepositoriesPage />} />
-                            <Route path="repositories/:repoId/commits" element={<CommitsPage />} />
-                            <Route path="repositories/:repoId/code" element={<RepositoryCodePage />} />
+                            <Route path="repositories/:repositoryId/commits" element={<CommitsPage />} />
+                            <Route path="repositories/:repositoryId/code" element={<RepositoryCodePage />} />
+                            <Route path="repositories/:repositoryId/team-analysis" element={<RepositoryTeamAnalysisPage />} />
+                            <Route path="ai-feedback-history" element={<AIFeedbackHistoryPage />} />
                             <Route path="projects" element={<ProjectsPage />} />
                             <Route path="projects/new" element={<CreateProjectPage />} />
                             <Route path="projects/:spaceId" element={<RoleBasedProjectRedirect />} />

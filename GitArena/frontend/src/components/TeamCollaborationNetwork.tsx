@@ -1,38 +1,44 @@
 import React, { useEffect, useState, useRef } from 'react';
 
-interface TeamMember {
+export interface TeamMember {
     id: string;
     name: string;
     avatar: string;
     contributions: number;
 }
 
-interface Collaboration {
+export interface Collaboration {
     from: string;
     to: string;
     strength: number; // 1-10
 }
 
-export const TeamCollaborationNetwork: React.FC = () => {
+interface TeamCollaborationNetworkProps {
+    members?: TeamMember[];
+    collaborations?: Collaboration[];
+}
+
+export const TeamCollaborationNetwork: React.FC<TeamCollaborationNetworkProps> = ({
+    members = [],
+    collaborations = []
+}) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const [members] = useState<TeamMember[]>([
-        { id: '1', name: 'You', avatar: '👤', contributions: 234 },
-        { id: '2', name: 'Sarah', avatar: '👩‍💻', contributions: 189 },
-        { id: '3', name: 'Mike', avatar: '👨‍💻', contributions: 156 },
-        { id: '4', name: 'Alex', avatar: '👨‍💻', contributions: 142 },
-        { id: '5', name: 'Emma', avatar: '👩‍💻', contributions: 128 },
-    ]);
-
-    const [collaborations] = useState<Collaboration[]>([
-        { from: '1', to: '2', strength: 8 },
-        { from: '1', to: '3', strength: 6 },
-        { from: '2', to: '3', strength: 9 },
-        { from: '2', to: '4', strength: 5 },
-        { from: '3', to: '5', strength: 7 },
-        { from: '4', to: '5', strength: 6 },
-    ]);
-
     const [hoveredMember, setHoveredMember] = useState<string | null>(null);
+
+    if (members.length === 0) {
+        return (
+            <div className="modern-card p-8 text-center min-h-[400px] flex flex-col items-center justify-center">
+                <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
+                    <span className="w-2 h-8 bg-blue-500 rounded-full"></span>
+                    Team Collaboration
+                </h3>
+                <div className="flex-1 flex flex-col items-center justify-center text-slate-500">
+                    <div className="text-4xl mb-4">🕸️</div>
+                    <p>No collaboration data available yet</p>
+                </div>
+            </div>
+        );
+    }
 
     useEffect(() => {
         const canvas = canvasRef.current;

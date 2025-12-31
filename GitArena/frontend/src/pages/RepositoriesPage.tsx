@@ -179,7 +179,7 @@ const RepositoriesPage: React.FC = () => {
                                 </div>
 
                                 {/* Actions Footer */}
-                                <div className="grid grid-cols-3 gap-2 pt-4 border-t border-slate-800/50">
+                                <div className="grid grid-cols-4 gap-2 pt-4 border-t border-slate-800/50">
                                     <button
                                         onClick={() => navigate(`/readme/${repo.id}`)}
                                         className="py-1.5 text-[11px] font-bold text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/5 rounded transition-all border border-transparent hover:border-indigo-500/20"
@@ -194,9 +194,16 @@ const RepositoriesPage: React.FC = () => {
                                     </button>
                                     <button
                                         onClick={() => navigate(`/repositories/${repo.id}/commits`)}
-                                        className="py-1.5 text-[11px] font-bold text-white bg-indigo-600/20 hover:bg-indigo-600/40 rounded transition-all border border-indigo-500/20"
+                                        className="py-1.5 text-[11px] font-bold text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/5 rounded transition-all border border-transparent hover:border-indigo-500/20"
                                     >
                                         COMMITS
+                                    </button>
+                                    <button
+                                        onClick={() => navigate(`/repositories/${repo.id}/team-analysis`)}
+                                        className="py-1.5 text-[11px] font-bold text-white bg-gradient-to-r from-cyan-600/30 to-purple-600/30 hover:from-cyan-600/50 hover:to-purple-600/50 rounded transition-all border border-cyan-500/30"
+                                        title="AI Team Analysis"
+                                    >
+                                        🤖 TEAM
                                     </button>
                                 </div>
                             </div>

@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     
     # OpenAI
     OPENAI_API_KEY: Optional[str] = None
+    OPENAI_MODEL: str = "gpt-4"  # Default to GPT-4
     
     # URLs
     FRONTEND_URL: str = "http://localhost:3000"

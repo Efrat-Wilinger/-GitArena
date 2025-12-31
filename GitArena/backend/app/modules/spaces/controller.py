@@ -26,6 +26,27 @@ async def create_space(
         
     return await service.create_space_with_contributors(space_data, current_user.id, user.access_token)
 
+@router.post("/connect", response_model=dict)
+async def connect_repository(
+    space_data: SpaceCreate,
+    current_user: UserResponse = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Smart Connect: 
+    - Joins existing space as Member if it exists.
+    - Creates new space as Manager if it doesn't.
+    """
+    service = SpaceService(db)
+    user_repo = UserRepository(db)
+    user = user_repo.get_by_id(current_user.id)
+    
+    if not user or not user.access_token:
+        raise HTTPException(status_code=400, detail="User not connected to GitHub")
+        
+    result = await service.join_or_create_space(space_data, current_user.id, user.access_token)
+    return result
+
 @router.get("/", response_model=List[SpaceResponse])
 def get_my_spaces(
     current_user: UserResponse = Depends(get_current_user),
@@ -122,4 +143,23 @@ async def get_project_analytics(
 ):
     """Get project analytics and metrics"""
     service = SpaceService(db)
+    """Get project analytics and metrics"""
+    service = SpaceService(db)
     return service.get_analytics(project_id, time_range)
+
+
+@router.post("/{space_id}/sync")
+async def sync_project_data(
+    space_id: int,
+    current_user: UserResponse = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Force sync project data from GitHub"""
+    service = SpaceService(db)
+    user_repo = UserRepository(db)
+    user = user_repo.get_by_id(current_user.id)
+    
+    if not user or not user.access_token:
+        raise HTTPException(status_code=400, detail="User not connected to GitHub")
+        
+    return await service.sync_project_data(space_id, current_user.id, user.access_token)

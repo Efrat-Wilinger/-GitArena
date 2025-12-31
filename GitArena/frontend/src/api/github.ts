@@ -132,17 +132,33 @@ export const githubApi = {
         await apiClient.put(`/github/repos/${repoId}/readme`, { content });
     },
 
+    // Manager Global View
+    getManagerActivityLog: async (filters?: { type?: string; dateRange?: string }): Promise<ActivityItem[]> => {
+        const response = await apiClient.get('/analytics/manager/activity', { params: filters });
+        return response.data;
+    },
+
+    getManagerTeamMembers: async (): Promise<TeamMember[]> => {
+        const response = await apiClient.get('/analytics/manager/team');
+        return response.data;
+    },
+
+    getManagerAnalytics: async (timeRange?: string): Promise<AnalyticsData> => {
+        const response = await apiClient.get('/analytics/manager/analytics-report', { params: { timeRange } });
+        return response.data;
+    },
+
     getTeamMembers: async (projectId: string): Promise<TeamMember[]> => {
-        const response = await apiClient.get(`/projects/${projectId}/members`);
+        const response = await apiClient.get(`/spaces/projects/${projectId}/members`);
         return response.data;
     },
 
     addTeamMember: async (projectId: string, username: string, role: string): Promise<void> => {
-        await apiClient.post(`/projects/${projectId}/members`, { username, role });
+        await apiClient.post(`/spaces/projects/${projectId}/members`, { username, role });
     },
 
     removeTeamMember: async (projectId: string, userId: string): Promise<void> => {
-        await apiClient.delete(`/projects/${projectId}/members/${userId}`);
+        await apiClient.delete(`/spaces/projects/${projectId}/members/${userId}`);
     },
 
 
@@ -151,14 +167,14 @@ export const githubApi = {
         dateRange?: string;
         memberId?: string;
     }): Promise<ActivityItem[]> => {
-        const response = await apiClient.get(`/projects/${projectId}/activity`, {
+        const response = await apiClient.get(`/spaces/projects/${projectId}/activity`, {
             params: filters
         });
         return response.data;
     },
 
     getAnalytics: async (projectId: string, timeRange?: string): Promise<AnalyticsData> => {
-        const response = await apiClient.get(`/projects/${projectId}/analytics`, {
+        const response = await apiClient.get(`/spaces/projects/${projectId}/analytics`, {
             params: { timeRange }
         });
         return response.data;
