@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../api/client';
 import { useProject } from '../contexts/ProjectContext';
 import {
@@ -157,6 +157,36 @@ const ProjectDashboardPage: React.FC = () => {
         .filter(a => new Date(a.date) >= oneWeekAgo)
         .reduce((sum, a) => sum + a.count, 0);
 
+    const queryClient = useQueryClient();
+    const [isSyncing, setIsSyncing] = useState(false);
+
+    // Sync mutation
+    const syncMutation = useMutation({
+        mutationFn: async () => {
+            const response = await apiClient.post(`/spaces/${spaceId}/sync`);
+            return response.data;
+        },
+        onMutate: () => setIsSyncing(true),
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: ['space-dashboard', spaceId] });
+            if (data.errors && data.errors.length > 0) {
+                alert(`Sync completed with warnings:\n${data.errors.join('\n')}`);
+            } else {
+                // Simple alert for visibility since we don't have a toast component ready
+                alert("Sync completed successfully! Data updated.");
+            }
+        },
+        onError: (err) => {
+            console.error("Sync failed:", err);
+            alert("Sync failed! Please try again or check console for details.");
+        },
+        onSettled: () => setIsSyncing(false)
+    });
+
+    const handleSync = () => {
+        if (isSyncing) return;
+        syncMutation.mutate();
+    };
 
     const currentProject = userProjects?.find(p => p.id === Number(spaceId));
 
@@ -238,19 +268,38 @@ const ProjectDashboardPage: React.FC = () => {
                 </div>
 
                 {/* Period Selector */}
-                <div className="flex items-center gap-2 bg-gray-800/50 border border-gray-700 rounded-lg p-1">
-                    {(['week', 'month', 'all'] as const).map((period) => (
-                        <button
-                            key={period}
-                            onClick={() => setSelectedPeriod(period)}
-                            className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${selectedPeriod === period
-                                ? 'bg-gradient-to-r from-cyan-600 to-purple-600 text-white shadow-lg'
-                                : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
-                                }`}
-                        >
-                            {period === 'week' ? 'This Week' : period === 'month' ? 'This Month' : 'All Time'}
-                        </button>
-                    ))}
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={handleSync}
+                        disabled={isSyncing}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 border ${isSyncing
+                            ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-400 cursor-not-allowed'
+                            : 'bg-gray-800/50 border-gray-700 text-gray-400 hover:text-white hover:border-cyan-500/50 hover:bg-gray-700/50'
+                            }`}
+                        title="Force sync data from GitHub"
+                    >
+                        <span className={`text-lg ${isSyncing ? 'animate-spin' : ''}`}>
+                            {isSyncing ? '↻' : '⚡'}
+                        </span>
+                        {isSyncing ? 'Syncing...' : 'Sync Data'}
+                    </button>
+
+                    <div className="h-6 w-px bg-gray-700 mx-1"></div>
+
+                    <div className="flex items-center gap-2 bg-gray-800/50 border border-gray-700 rounded-lg p-1">
+                        {(['week', 'month', 'all'] as const).map((period) => (
+                            <button
+                                key={period}
+                                onClick={() => setSelectedPeriod(period)}
+                                className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${selectedPeriod === period
+                                    ? 'bg-gradient-to-r from-cyan-600 to-purple-600 text-white shadow-lg'
+                                    : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+                                    }`}
+                            >
+                                {period === 'week' ? 'This Week' : period === 'month' ? 'This Month' : 'All Time'}
+                            </button>
+                        ))}
+                    </div>
                 </div>
             </div>
 
@@ -261,28 +310,24 @@ const ProjectDashboardPage: React.FC = () => {
                     value={overview.total_commits}
                     icon="⚡"
                     color="cyan"
-                    trend="+12%"
                 />
                 <StatCard
                     title="Active Contributors"
                     value={overview.active_contributors}
                     icon="👥"
                     color="purple"
-                    trend="+2"
                 />
                 <StatCard
                     title="Pull Requests"
                     value={overview.total_prs}
                     icon="🔀"
                     color="pink"
-                    trend="+5%"
                 />
                 <StatCard
                     title="Lines of Code"
                     value={(overview.total_lines_code || 0).toLocaleString()}
                     icon="📝"
                     color="green"
-                    trend="+8.2K"
                 />
             </div>
 

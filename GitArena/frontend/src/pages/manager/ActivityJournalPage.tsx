@@ -1,38 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { githubApi } from '../../api/github';
-
-interface ActivityItem {
-    id: string;
-    type: 'commit' | 'pr' | 'review' | 'issue' | 'merge' | 'deploy';
-    actor: {
-        name: string;
-        avatar: string;
-    };
-    action: string;
-    target: string;
-    timestamp: string;
-    metadata?: {
-        description?: string;
-        additions?: number;
-        deletions?: number;
-        files?: number;
-    };
-
-}
+import { githubApi, ActivityItem } from '../../api/github';
+import { useProject } from '../../contexts/ProjectContext';
 
 const ActivityJournalPage: React.FC = () => {
+    const { currentProjectId } = useProject();
     const [activities, setActivities] = useState<ActivityItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState<string>('all');
     const [searchQuery, setSearchQuery] = useState('');
     const [dateRange, setDateRange] = useState('7days');
-    const [projectId] = useState('1'); // TODO: Get from context
+
 
     useEffect(() => {
         const fetchActivity = async () => {
+            if (!currentProjectId) return;
+
             setLoading(true);
             try {
-                const data = await githubApi.getActivityLog(projectId, {
+                // Fetch project-specific activity
+                const data = await githubApi.getActivityLog(currentProjectId.toString(), {
                     type: filter === 'all' ? undefined : filter,
                     dateRange
                 });
@@ -44,7 +30,7 @@ const ActivityJournalPage: React.FC = () => {
             }
         };
         fetchActivity();
-    }, [projectId, filter, dateRange]);
+    }, [currentProjectId, filter, dateRange]);
 
 
     const getTypeIcon = (type: ActivityItem['type']) => {
@@ -71,6 +57,16 @@ const ActivityJournalPage: React.FC = () => {
         return colors[type];
     };
 
+    if (!currentProjectId) {
+        return (
+            <div className="flex flex-col items-center justify-center p-12 text-center">
+                <div className="text-4xl mb-4">📂</div>
+                <h3 className="text-xl font-bold text-white mb-2">No Project Selected</h3>
+                <p className="text-slate-400">Please select a project from the top bar to view activity.</p>
+            </div>
+        );
+    }
+
     return (
         <div className="max-w-7xl mx-auto space-y-8 pb-12">
             {/* Header */}
@@ -78,7 +74,7 @@ const ActivityJournalPage: React.FC = () => {
                 <div className="flex items-center justify-between mb-6">
                     <div>
                         <h1 className="text-4xl font-bold text-white mb-2">Activity Journal</h1>
-                        <p className="text-slate-400">Complete timeline of team activity</p>
+                        <p className="text-slate-400">Complete timeline of project activity</p>
                     </div>
                     <div className="flex gap-3">
                         <button className="btn-secondary text-sm flex items-center gap-2">
@@ -136,12 +132,12 @@ const ActivityJournalPage: React.FC = () => {
             {/* Activity Stats */}
             <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
                 {[
-                    { type: 'commit', label: 'Commits', count: 234 },
-                    { type: 'pr', label: 'Pull Requests', count: 45 },
-                    { type: 'review', label: 'Reviews', count: 67 },
-                    { type: 'issue', label: 'Issues', count: 23 },
-                    { type: 'merge', label: 'Merges', count: 38 },
-                    { type: 'deploy', label: 'Deploys', count: 12 },
+                    { type: 'commit', label: 'Commits', count: activities.filter(a => a.type === 'commit').length },
+                    { type: 'pr', label: 'Pull Requests', count: activities.filter(a => a.type === 'pr').length },
+                    { type: 'review', label: 'Reviews', count: activities.filter(a => a.type === 'review').length },
+                    { type: 'issue', label: 'Issues', count: activities.filter(a => a.type === 'issue').length },
+                    { type: 'merge', label: 'Merges', count: activities.filter(a => a.type === 'merge').length },
+                    { type: 'deploy', label: 'Deploys', count: activities.filter(a => a.type === 'deploy').length },
                 ].map((stat) => (
                     <div key={stat.type} className="modern-card p-4 text-center">
                         <div className="text-3xl mb-2">{getTypeIcon(stat.type as ActivityItem['type'])}</div>
@@ -231,5 +227,4 @@ const ActivityJournalPage: React.FC = () => {
         </div>
     );
 };
-
 export default ActivityJournalPage;

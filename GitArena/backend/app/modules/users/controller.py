@@ -56,3 +56,16 @@ async def get_user_dashboard(
     from app.modules.users.dashboard_dto import UserDashboardResponse
     service = UserService(db)
     return service.get_user_dashboard_stats(current_user.id)
+
+
+@router.post("/sync-projects", response_model=dict)
+async def sync_all_projects(
+    db: Session = Depends(get_db),
+    current_user: UserResponse = Depends(get_current_user)
+):
+    """Sync all user projects from GitHub"""
+    if not current_user.access_token:
+         raise HTTPException(status_code=400, detail="User not connected to GitHub")
+         
+    service = UserService(db)
+    return await service.sync_all_user_projects(current_user.id, current_user.access_token)

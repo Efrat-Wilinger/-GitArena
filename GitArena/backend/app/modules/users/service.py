@@ -33,11 +33,16 @@ class UserService:
         # Assuming user.email is populated from GitHub
         total_commits = 0
         if user.email:
-             total_commits = self.db.query(func.count(Commit.id)).filter(Commit.author_email == user.email).scalar() or 0
+             total_commits = self.db.query(func.count(Commit.id)).filter(
+                 (Commit.author_email == user.email) | 
+                 (Commit.author_name == user.username) | 
+                 (Commit.author_name == user.name)
+             ).scalar() or 0
         else:
-             # Fallback to name? Or username? Git commits use name/email.
-             # If email is missing, we might miss commits.
-             pass
+             total_commits = self.db.query(func.count(Commit.id)).filter(
+                 (Commit.author_name == user.username) | 
+                 (Commit.author_name == user.name)
+             ).scalar() or 0
 
         # 3. PRs (Match by username as 'author' in PR table is github login)
         total_prs = self.db.query(func.count(PullRequest.id)).filter(PullRequest.author == user.username).scalar() or 0
@@ -269,3 +274,32 @@ class UserService:
             weekly_activity=weekly_activity,
             heatmap_data=heatmap_data
         )
+
+    async def sync_all_user_projects(self, user_id: int, access_token: str) -> dict:
+        """Sync all projects for a user"""
+        from app.modules.spaces.service import SpaceService
+        
+        space_service = SpaceService(self.db)
+        spaces = space_service.get_my_spaces(user_id)
+        
+        results = {
+            "total_synced": 0,
+            "failed": 0,
+            "errors": []
+        }
+        
+        for space in spaces:
+            try:
+                # We reuse the sync_project_data logic but maybe less verbose or optimized
+                # For now let's just trigger it seriously.
+                # Note: This might be slow if many projects. Ideally use background tasks.
+                role = space_service.get_user_role_in_project(space.id, user_id)
+                if role in ['manager', 'owner']: # Only sync if manager/owner? Or everyone?
+                    await space_service.sync_project_data(space.id, user_id, access_token)
+                    results["total_synced"] += 1
+            except Exception as e:
+                results["failed"] += 1
+                logger.error(f"Failed to sync space {space.id}: {e}")
+                results["errors"].append(str(e))
+                
+        return results

@@ -57,6 +57,45 @@ class SpaceService:
             
         return SpaceResponse.model_validate(space)
 
+    async def join_or_create_space(self, space_data: SpaceCreate, user_id: int, access_token: str) -> dict:
+        """
+        Smart Project Logic:
+        1. Check if a Space already exists for this GitHub Repository.
+        2. If EXISTS: Add current user as MEMBER (if not already).
+        3. If NOT EXISTS: Create new Space and make current user MANAGER.
+        """
+        # Check for existing space by repository_id
+        # We need to query SpaceRepository or simple DB query here
+        # Assuming Space has repository_id link via Repository table, but easier if we search repositories
+        
+        # Find repository first
+        repo = self.github_service.repository.get_repository_by_id(space_data.repository_id)
+        existing_space = None
+        
+        if repo and repo.space_id:
+            existing_space = self.repository.get_space_by_id(repo.space_id)
+            
+        if existing_space:
+            # SCENARIO: JOIN AS MEMBER
+            print(f"DEBUG: Space already exists for repo {space_data.repository_id}. Adding user {user_id} as MEMBER.")
+            
+            # Check if already a member
+            if existing_space.owner_id == user_id:
+                return {"space": SpaceResponse.model_validate(existing_space), "role": "manager", "action": "joined_existing"}
+                
+            is_member = self.repository.is_member(existing_space.id, user_id)
+            if not is_member:
+                self.repository.add_member(existing_space.id, user_id, role="member")
+                
+            return {"space": SpaceResponse.model_validate(existing_space), "role": "member", "action": "joined_existing"}
+            
+        else:
+            # SCENARIO: CREATE AS MANAGER
+            print(f"DEBUG: No space exists for repo {space_data.repository_id}. Creating new space with user {user_id} as MANAGER.")
+            # Use existing creation logic
+            new_space = await self.create_space_with_contributors(space_data, user_id, access_token)
+            return {"space": new_space, "role": "manager", "action": "created_new"}
+
     def get_my_spaces(self, user_id: int) -> List[SpaceResponse]:
         spaces = self.repository.get_user_spaces(user_id)
         return [SpaceResponse.model_validate(s) for s in spaces]
@@ -433,3 +472,103 @@ class SpaceService:
                 "avgReviewTime": 4.5 # Mock for now
             }
         }
+
+    async def sync_project_data(self, space_id: int, user_id: int, access_token: str) -> dict:
+        """Force sync project data from GitHub"""
+        space = self.repository.get_space_by_id(space_id)
+        if not space:
+            raise NotFoundException("Space not found")
+            
+        if not space.repositories:
+            raise NotFoundException("No repository linked to this project")
+            
+        # Verify permissions (member of project)
+        # Assuming any member can trigger sync for now
+        
+        repo = space.repositories[0]
+        results = {
+            "commits": 0,
+            "prs": 0,
+            "issues": 0,
+            "releases": 0, 
+            "errors": []
+        }
+        
+        # 1. Sync Commits
+        try:
+            commits = await self.github_service.sync_commits(repo.id, access_token)
+            results["commits"] = len(commits)
+        except Exception as e:
+            results["errors"].append(f"Commits: {str(e)}")
+            
+        # 2. Sync PRs
+        try:
+            prs = await self.github_service.sync_pull_requests(repo.id, access_token)
+            results["prs"] = len(prs)
+        except Exception as e:
+            results["errors"].append(f"PRs: {str(e)}")
+            
+        # 3. Sync Issues
+        try:
+            issues = await self.github_service.sync_issues(repo.id, access_token)
+            results["issues"] = len(issues)
+        except Exception as e:
+            results["errors"].append(f"Issues: {str(e)}")
+
+        # 4. Sync Releases
+        try:
+            releases = await self.github_service.sync_releases(repo.id, access_token)
+            results["releases"] = len(releases)
+        except Exception as e:
+             results["errors"].append(f"Releases: {str(e)}")
+             
+        # 5. Sync Activities
+        try:
+            await self.github_service.sync_activities(repo.id, access_token)
+        except Exception as e:
+             results["errors"].append(f"Activities: {str(e)}")
+
+        # 6. Sync Contributors (Members)
+        try:
+            print(f"DEBUG: Fetching contributors for repo {repo.id}")
+            contributors = await self.github_service.get_contributors(repo.id, access_token)
+            print(f"DEBUG: Found {len(contributors)} contributors")
+            
+            for contributor in contributors:
+                github_id = str(contributor["id"])
+                username = contributor["login"]
+                print(f"DEBUG: Processing contributor {username} (ID: {github_id})")
+                
+                # Check if user exists, if not create "Shadow User"
+                user = self.user_repository.get_by_github_id(github_id)
+                if not user:
+                    print(f"DEBUG: Creating shadow user for {username}")
+                    user = User(
+                        github_id=github_id,
+                        username=username,
+                        avatar_url=contributor["avatar_url"],
+                        role="member"
+                    )
+                    self.db.add(user)
+                    self.db.commit()
+                    self.db.refresh(user)
+                else:
+                    print(f"DEBUG: Found existing user {user.username} (ID: {user.id})")
+                
+                # Check if already a member/owner
+                if space.owner_id == user.id:
+                    print("DEBUG: User is owner, skipping add_member")
+                    continue
+                    
+                is_member = self.repository.is_member(space.id, user.id)
+                if not is_member:
+                    print(f"DEBUG: Adding {username} as member to space {space.id}")
+                    self.repository.add_member(space.id, user.id, role="viewer")
+                else:
+                    print(f"DEBUG: {username} is already a member")
+                    
+        except Exception as e:
+             print(f"DEBUG: Error syncing contributors: {e}")
+             results["errors"].append(f"Contributors: {str(e)}")
+             
+        return results

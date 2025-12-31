@@ -2,12 +2,7 @@ import React from 'react';
 import { LanguageStats, CommitStats, PRStats, RepoStats } from '../api/auth';
 
 export const LanguageDistribution: React.FC<{ data?: LanguageStats[] }> = ({ data }) => {
-    const languages = data || [
-        { name: 'TypeScript', percentage: 45, color: 'bg-blue-500' },
-        { name: 'JavaScript', percentage: 25, color: 'bg-blue-400' },
-        { name: 'Python', percentage: 20, color: 'bg-blue-600' },
-        { name: 'Other', percentage: 10, color: 'bg-slate-600' },
-    ];
+    const languages = data || [];
 
     return (
         <div className="modern-card p-6">
@@ -39,11 +34,7 @@ export const LanguageDistribution: React.FC<{ data?: LanguageStats[] }> = ({ dat
 };
 
 export const RecentCommits: React.FC<{ data?: CommitStats[] }> = ({ data }) => {
-    const commits = data || [
-        { message: 'Add user authentication', repo: 'GitArena', time: '2h ago', additions: 45, deletions: 12 },
-        { message: 'Fix dashboard layout', repo: 'Frontend', time: '5h ago', additions: 23, deletions: 8 },
-        { message: 'Update API endpoints', repo: 'Backend', time: '1d ago', additions: 67, deletions: 34 },
-    ];
+    const commits = data || [];
 
     return (
         <div className="modern-card p-6">
@@ -81,11 +72,7 @@ export const RecentCommits: React.FC<{ data?: CommitStats[] }> = ({ data }) => {
 };
 
 export const PullRequestStatus: React.FC<{ data?: PRStats[] }> = ({ data }) => {
-    const stats = data || [
-        { label: 'Open', count: 5, color: 'text-blue-400', bgColor: 'bg-blue-500/10' },
-        { label: 'Merged', count: 23, color: 'text-blue-400', bgColor: 'bg-blue-500/10' },
-        { label: 'Closed', count: 8, color: 'text-slate-400', bgColor: 'bg-slate-500/10' },
-    ];
+    const stats = data || [];
 
     return (
         <div className="modern-card p-6">
@@ -111,11 +98,7 @@ export const PullRequestStatus: React.FC<{ data?: PRStats[] }> = ({ data }) => {
 };
 
 export const TopRepositories: React.FC<{ data?: RepoStats[] }> = ({ data }) => {
-    const repos = data || [
-        { name: 'GitArena', stars: 1234, language: 'TypeScript', trend: '+12%' },
-        { name: 'DevOps-Pipeline', stars: 856, language: 'Python', trend: '+8%' },
-        { name: 'Frontend-v2', stars: 542, language: 'JavaScript', trend: '+5%' },
-    ];
+    const repos = data || [];
 
     return (
         <div className="modern-card p-6">
@@ -158,9 +141,8 @@ export const TopRepositories: React.FC<{ data?: RepoStats[] }> = ({ data }) => {
 
 export const WeeklyActivity: React.FC<{ data?: number[] }> = ({ data }) => {
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    // If we have data, we assume it matches 7 days ending today.
-    // If not, use mock.
-    const activity = data && data.length === 7 ? data : [45, 72, 58, 90, 65, 30, 15]; // fallback
+    // Use real data or empty array
+    const activity = data && data.length === 7 ? data : [0, 0, 0, 0, 0, 0, 0];
     const maxActivity = Math.max(...activity, 1); // prevent div by zero
 
     return (
