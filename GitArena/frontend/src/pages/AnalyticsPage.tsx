@@ -110,15 +110,9 @@ const AnalyticsPage: React.FC = () => {
 
             {/* Page Header */}
             <div className="modern-card p-8">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-4xl font-bold text-white mb-2">Analytics Dashboard</h1>
-                        <p className="text-slate-400">Insights and metrics for your team</p>
-                    </div>
-                    <div className="flex gap-3">
-                        <button className="btn-secondary text-sm">Export Report</button>
-                        <button className="btn-primary text-sm">Share</button>
-                    </div>
+                <div>
+                    <h1 className="text-4xl font-bold text-white mb-2">Analytics Dashboard</h1>
+                    <p className="text-slate-400">Insights and metrics for your team</p>
                 </div>
             </div>
 

@@ -46,3 +46,8 @@ class SpaceRepository:
             self.db.delete(member)
             self.db.commit()
 
+    def find_space_by_repository_id(self, github_repo_id: str) -> Space:
+        """Find a space that contains a repository with the given GitHub ID"""
+        from app.shared.models import Repository
+        return self.db.query(Space).join(Repository).filter(Repository.github_id == str(github_repo_id)).first()
+

@@ -60,26 +60,32 @@ class SpaceService:
     async def join_or_create_space(self, space_data: SpaceCreate, user_id: int, access_token: str) -> dict:
         """
         Smart Project Logic:
-        1. Check if a Space already exists for this GitHub Repository.
+        1. Check if a Space already exists for this GitHub Repository (globally).
         2. If EXISTS: Add current user as MEMBER (if not already).
         3. If NOT EXISTS: Create new Space and make current user MANAGER.
         """
-        # Check for existing space by repository_id
-        # We need to query SpaceRepository or simple DB query here
-        # Assuming Space has repository_id link via Repository table, but easier if we search repositories
         
-        # Find repository first
+        # 1. Get the repository details to check github_id
         repo = self.github_service.repository.get_repository_by_id(space_data.repository_id)
-        existing_space = None
-        
-        if repo and repo.space_id:
-            existing_space = self.repository.get_space_by_id(repo.space_id)
+        if not repo:
+             raise NotFoundException("Repository not found")
+
+        # 2. Check for ANY existing space with this github_id
+        # This prevents duplicate spaces if user B syncs same repo as user A
+        existing_space = self.repository.find_space_by_repository_id(repo.github_id)
             
         if existing_space:
             # SCENARIO: JOIN AS MEMBER
-            print(f"DEBUG: Space already exists for repo {space_data.repository_id}. Adding user {user_id} as MEMBER.")
+            print(f"DEBUG: Space already exists for repo {repo.name} (ID: {repo.github_id}). Adding user {user_id} as MEMBER.")
             
-            # Check if already a member
+            # Link this user's repo instance to the existing space too?
+            # Ideally we should deduplicate repos, but for now let's just link it 
+            # so the user sees it in the space context.
+            if repo.space_id != existing_space.id:
+                print(f"DEBUG: Linking user's repo instance to existing space {existing_space.id}")
+                self.github_service.repository.update_repository(repo, space_id=existing_space.id)
+
+            # Check if already a member OR owner
             if existing_space.owner_id == user_id:
                 return {"space": SpaceResponse.model_validate(existing_space), "role": "manager", "action": "joined_existing"}
                 
@@ -87,11 +93,14 @@ class SpaceService:
             if not is_member:
                 self.repository.add_member(existing_space.id, user_id, role="member")
                 
-            return {"space": SpaceResponse.model_validate(existing_space), "role": "member", "action": "joined_existing"}
+            # Fetch updated role
+            final_role = "manager" if existing_space.owner_id == user_id else "member"
+            
+            return {"space": SpaceResponse.model_validate(existing_space), "role": final_role, "action": "joined_existing"}
             
         else:
             # SCENARIO: CREATE AS MANAGER
-            print(f"DEBUG: No space exists for repo {space_data.repository_id}. Creating new space with user {user_id} as MANAGER.")
+            print(f"DEBUG: No space exists for repo {repo.name} (ID: {repo.github_id}). Creating new space with user {user_id} as MANAGER.")
             # Use existing creation logic
             new_space = await self.create_space_with_contributors(space_data, user_id, access_token)
             return {"space": new_space, "role": "manager", "action": "created_new"}
@@ -393,41 +402,102 @@ class SpaceService:
         return self.repository.remove_member(project_id, user_id)
 
     def get_activity_log(self, project_id: int, type_filter: str = None, date_range: str = "7days") -> List[dict]:
-        """Get project-wide activity log"""
+        """Get project-wide activity log aggregating Commits, PRs, Issues and generic Activity"""
+        from app.shared.models import Commit, PullRequest, Issue
+        from sqlalchemy import func
+        
         space = self.repository.get_space_by_id(project_id)
         if not space:
             return []
             
         repo_ids = [r.id for r in space.repositories]
-        query = self.db.query(Activity).filter(Activity.repository_id.in_(repo_ids))
+        combined_activities = []
         
-        if type_filter:
-            query = query.filter(Activity.type == type_filter)
-            
-        # Simplified date range
+        # Calculate start date
         days = 7
-        if "30" in str(date_range): days = 30
+        if str(date_range).lower() == "all" or str(date_range).lower() == "all time":
+            days = 3650 # 10 years
+        elif "today" in str(date_range): days = 1
+        elif "7" in str(date_range): days = 7
+        elif "30" in str(date_range): days = 30
         elif "90" in str(date_range): days = 90
         
         start_date = datetime.utcnow() - timedelta(days=days)
-        query = query.filter(Activity.created_at >= start_date)
-        
-        activities = query.order_by(Activity.created_at.desc()).limit(100).all()
-        
-        return [
-            {
-                "id": str(act.id),
-                "type": act.type.lower(),
+
+        # Helper to normalize data
+        def normalize(obj, type_name, action, title, target, created_at, actor_name, actor_avatar=None):
+            return {
+                "id": f"{type_name}_{obj.id}",
+                "type": type_name,
                 "actor": {
-                    "name": act.user_login,
-                    "avatar": None # We could fetch from User table if linked
+                    "name": actor_name or "Unknown",
+                    "avatar": actor_avatar
                 },
-                "action": act.action,
-                "target": act.title,
-                "timestamp": act.created_at.isoformat(),
-                "metadata": {"description": act.description}
-            } for act in activities
-        ]
+                "action": action,
+                "target": target,
+                "timestamp": created_at.isoformat(),
+                "metadata": {
+                    "description": title
+                }
+            }
+
+        # 1. Fetch Commits
+        if not type_filter or type_filter.lower() == 'commit' or type_filter == 'all':
+            commits = self.db.query(Commit).filter(
+                Commit.repository_id.in_(repo_ids),
+                Commit.committed_date >= start_date
+            ).order_by(Commit.committed_date.desc()).limit(100).all()
+            
+            for c in commits:
+                combined_activities.append(normalize(
+                    c, 'commit', 'pushed', c.message.split('\n')[0], c.sha[:7], c.committed_date, c.author_name
+                ))
+
+        # 2. Fetch Pull Requests
+        if not type_filter or type_filter.lower() == 'pr' or type_filter == 'all':
+            prs = self.db.query(PullRequest).filter(
+                PullRequest.repository_id.in_(repo_ids),
+                PullRequest.created_at >= start_date
+            ).order_by(PullRequest.created_at.desc()).limit(100).all()
+            
+            for pr in prs:
+                combined_activities.append(normalize(
+                    pr, 'pr', pr.state, pr.title, f"#{pr.number}", pr.created_at, pr.author, None
+                ))
+
+        # 3. Fetch Issues
+        if not type_filter or type_filter.lower() == 'issue' or type_filter == 'all':
+            issues = self.db.query(Issue).filter(
+                Issue.repository_id.in_(repo_ids),
+                Issue.created_at >= start_date
+            ).order_by(Issue.created_at.desc()).limit(100).all()
+            
+            for i in issues:
+                combined_activities.append(normalize(
+                    i, 'issue', i.state, i.title, f"#{i.number}", i.created_at, i.author, None
+                ))
+                
+        # 4. Fetch generic Activity (for releases, deployments, etc.) if needed
+        # We assume Activity table might overlap so we only take other types if 'all' or specific
+        other_types = ['release', 'deployment', 'merge']
+        if not type_filter or type_filter in other_types or type_filter == 'all':
+            activities = self.db.query(Activity).filter(
+                Activity.repository_id.in_(repo_ids),
+                Activity.created_at >= start_date,
+                Activity.type.in_(['ReleaseEvent', 'DeploymentEvent', 'PushEvent']) == False  # Exclude duplicates ideally
+            ).order_by(Activity.created_at.desc()).limit(50).all()
+            
+            for act in activities:
+                # Basic mapping
+                t = act.type.lower().replace('event', '')
+                combined_activities.append(normalize(
+                    act, t, act.action, act.description, act.title, act.created_at, act.user_login
+                ))
+
+        # Sort combined list by timestamp desc
+        combined_activities.sort(key=lambda x: x['timestamp'], reverse=True)
+        
+        return combined_activities[:100]
 
     def get_analytics(self, project_id: int, time_range: str = "30days") -> dict:
         """Get high-level project analytics"""

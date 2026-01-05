@@ -3,49 +3,31 @@ import React, { useState, useEffect } from 'react';
 interface CommitData {
     date: string;
     count: number;
-    additions: number;
-    deletions: number;
+    additions?: number;
+    deletions?: number;
 }
 
-export const AnimatedCommitGraph: React.FC<{ repoId?: string }> = ({ repoId }) => {
+interface AnimatedCommitGraphProps {
+    data?: CommitData[];
+    repoId?: string; // Keep for backward compatibility if needed, though data prop is preferred
+}
+
+export const AnimatedCommitGraph: React.FC<AnimatedCommitGraphProps> = ({ data: initialData }) => {
     const [data, setData] = useState<CommitData[]>([]);
-    const [loading, setLoading] = useState(true);
     const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
     useEffect(() => {
-        const fetchCommitData = async () => {
-            if (!repoId) {
-                setLoading(false);
-                return;
-            }
-
-            setLoading(true);
-            try {
-                // TODO: Replace with actual commit activity API endpoint when available
-                // For now, set empty data until the endpoint is implemented
-                setData([]);
-                setLoading(false);
-            } catch (error) {
-                console.error('Error fetching commit data:', error);
-                setData([]);
-                setLoading(false);
-            }
-        };
-
-        fetchCommitData();
-    }, [repoId]);
+        if (initialData && initialData.length > 0) {
+            setData(initialData);
+        } else {
+            // Fallback or empty state if no data provided
+            setData([]);
+        }
+    }, [initialData]);
 
     const maxCount = Math.max(...data.map(d => d.count), 1);
 
-    if (loading) {
-        return (
-            <div className="modern-card p-8">
-                <div className="h-64 flex items-center justify-center">
-                    <div className="animate-spin w-12 h-12 border-4 border-blue-500/30 border-t-blue-500 rounded-full"></div>
-                </div>
-            </div>
-        );
-    }
+
 
     return (
         <div className="modern-card p-8 relative overflow-hidden">
@@ -152,8 +134,8 @@ export const AnimatedCommitGraph: React.FC<{ repoId?: string }> = ({ repoId }) =
                 <div className="mt-6 grid grid-cols-3 gap-4">
                     {[
                         { label: 'Total Commits', value: data.reduce((sum, d) => sum + d.count, 0), color: 'text-blue-400' },
-                        { label: 'Lines Added', value: data.reduce((sum, d) => sum + d.additions, 0), color: 'text-green-400' },
-                        { label: 'Lines Removed', value: data.reduce((sum, d) => sum + d.deletions, 0), color: 'text-red-400' },
+                        { label: 'Lines Added', value: data.reduce((sum, d) => sum + (d.additions || 0), 0), color: 'text-green-400' },
+                        { label: 'Lines Removed', value: data.reduce((sum, d) => sum + (d.deletions || 0), 0), color: 'text-red-400' },
                     ].map((stat, i) => (
                         <div key={i} className="text-center p-3 rounded-lg bg-slate-800/30">
                             <div className={`text-2xl font-bold ${stat.color}`}>{stat.value.toLocaleString()}</div>

@@ -1,9 +1,15 @@
 import React, { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { githubApi } from '../../api/github';
+import { authApi, User } from '../../api/auth';
 
 
 
 const MyWorkPage: React.FC = () => {
+    const { data: user } = useQuery<User>({
+        queryKey: ['currentUser'],
+        queryFn: authApi.getCurrentUser,
+    });
 
     const [tasks, setTasks] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -11,10 +17,11 @@ const MyWorkPage: React.FC = () => {
 
     useEffect(() => {
         const fetchTasks = async () => {
+            if (!user?.id) return;
+
             setLoading(true);
             try {
-                // TODO: Get real userId from auth context
-                const data = await githubApi.getUserTasks(1);
+                const data = await githubApi.getUserTasks(user.id);
                 setTasks(data);
             } catch (error) {
                 console.error('Failed to fetch tasks:', error);
@@ -23,11 +30,16 @@ const MyWorkPage: React.FC = () => {
             }
         };
         fetchTasks();
-    }, []);
+    }, [user?.id]);
 
     const myPRs = tasks.filter(t => t.type === 'pr');
     const reviewsNeeded = tasks.filter(t => t.type === 'review');
     const assignedIssues = tasks.filter(t => t.type === 'issue');
+
+    // Calculate real completion rate
+    const totalTasks = tasks.length;
+    const completedTasks = tasks.filter(t => t.status === 'closed' || t.status === 'merged').length;
+    const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
     if (loading) {
         return (
@@ -74,7 +86,7 @@ const MyWorkPage: React.FC = () => {
                     { label: 'Open PRs', value: myPRs.length, color: 'blue' },
                     { label: 'Pending Reviews', value: reviewsNeeded.length, color: 'orange' },
                     { label: 'Active Issues', value: assignedIssues.length, color: 'red' },
-                    { label: 'Task Completion', value: '85%', color: 'green' },
+                    { label: 'Task Completion', value: `${completionRate}%`, color: 'green' },
                 ].map((stat, i) => (
                     <div key={i} className="modern-card p-6 text-center">
                         <div className="text-3xl font-bold text-blue-400 mb-1">{stat.value}</div>
@@ -149,7 +161,7 @@ const MyWorkPage: React.FC = () => {
                         <p className="text-slate-500 text-sm py-4">No assigned issues.</p>
                     ) : assignedIssues.map((task) => (
                         <a href={task.url} target="_blank" rel="noopener noreferrer" key={task.id} className="block p-4 rounded-lg bg-slate-800/50 hover:bg-slate-800 transition-colors">
-                            <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-start gap-3">
                                 <div className="flex-1">
                                     <div className="flex items-center gap-2 mb-2">
                                         <span className={`px-2 py-0.5 rounded text-xs font-semibold ${task.priority === 'high' ? 'bg-red-500/20 text-red-400' : 'bg-blue-500/20 text-blue-400'}`}>
@@ -161,9 +173,9 @@ const MyWorkPage: React.FC = () => {
                                         {task.title}
                                     </h4>
                                 </div>
-                                <button className="btn-primary text-sm flex-shrink-0">
-                                    View on GitHub
-                                </button>
+                                <svg className="w-5 h-5 text-slate-400 group-hover:text-blue-400 transition-colors flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                </svg>
                             </div>
                         </a>
                     ))}

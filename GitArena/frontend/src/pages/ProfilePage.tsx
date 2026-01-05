@@ -3,38 +3,54 @@ import { ErrorBoundary } from '../components/ErrorBoundary';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { authApi, User } from '../api/auth';
 import apiClient from '../api/client';
-import ContributionHeatmap from '../components/ContributionHeatmap';
-import { AchievementsSection } from '../components/AchievementBadge';
-import AIInsights from '../components/AIInsights';
-import AnimatedCommitGraph from '../components/AnimatedCommitGraph';
-import TeamCollaborationNetwork, { TeamMember, Collaboration } from '../components/TeamCollaborationNetwork';
+import TeamCollaborationNetwork from '../components/TeamCollaborationNetwork';
 import { LanguageDistribution, RecentCommits, PullRequestStatus, TopRepositories, WeeklyActivity } from '../components/DashboardWidgets';
 import RoleBasedView, { useUserRole } from '../components/RoleBasedView';
+import { githubApi, TeamCollaborationResponse } from '../api/github';
+import AIInsights from '../components/AIInsights';
+import AnimatedCommitGraph from '../components/AnimatedCommitGraph';
+import ContributionHeatmap from '../components/ContributionHeatmap';
+import { AchievementsSection } from '../components/AchievementBadge';
+import { useProject } from '../contexts/ProjectContext';
 
 const ProfilePage: React.FC = () => {
+    const { currentProjectId: contextProjectId } = useProject();
+    const currentProjectId = contextProjectId ?? undefined;
+
     const { data: user, isLoading, error } = useQuery<User>({
         queryKey: ['currentUser'],
         queryFn: authApi.getCurrentUser,
     });
 
-    const { data: collaborationData } = useQuery<{ members: TeamMember[], collaborations: Collaboration[] }>({
-        queryKey: ['teamCollaboration', user?.id],
-        queryFn: async () => {
-            const response = await apiClient.get('/analytics/collaboration');
-            return response.data;
-        },
-        enabled: !!user?.id
-    });
-
     const userRole = useUserRole();
 
     const { data: managerStats } = useQuery({
-        queryKey: ['managerStats', user?.id],
+        queryKey: ['managerStats', user?.id, currentProjectId],
         queryFn: async () => {
-            const response = await apiClient.get('/analytics/manager-stats');
+            const response = await apiClient.get('/analytics/manager-stats', {
+                params: { project_id: currentProjectId }
+            });
             return response.data;
         },
         enabled: !!user?.id && userRole === 'manager'
+    });
+
+    const { data: collaborationData } = useQuery<TeamCollaborationResponse>({
+        queryKey: ['teamCollaboration', currentProjectId],
+        queryFn: githubApi.getTeamCollaboration, // Note: Collaboration might need filtering too if backend supports it
+        enabled: userRole === 'manager',
+    });
+
+    const { data: teamStats } = useQuery({
+        queryKey: ['teamStats', currentProjectId],
+        queryFn: () => githubApi.getTeamStats(currentProjectId),
+        enabled: userRole === 'manager',
+    });
+
+    const { data: analytics } = useQuery({
+        queryKey: ['managerDeepDive', '30days', currentProjectId],
+        queryFn: () => githubApi.getManagerAnalytics('30days', currentProjectId),
+        enabled: userRole === 'manager'
     });
 
     const queryClient = useQueryClient();
@@ -52,6 +68,7 @@ const ProfilePage: React.FC = () => {
             queryClient.invalidateQueries({ queryKey: ['currentUser'] });
             // Refresh team collaboration too
             queryClient.invalidateQueries({ queryKey: ['teamCollaboration'] });
+            queryClient.invalidateQueries({ queryKey: ['managerStats'] });
 
             if (data.failed > 0) {
                 alert(`Sync completed with ${data.failed} errors:\n${data.errors.join('\n')}\nSynced: ${data.total_synced}`);
@@ -162,40 +179,39 @@ const ProfilePage: React.FC = () => {
 
                     {/* Sync Button */}
                     <button
-                        onClick={handleSync}
+                        onClick={() => syncMutation.mutate()}
                         disabled={isSyncing}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 border self-center ${isSyncing
-                            ? 'bg-blue-500/20 border-blue-500/50 text-blue-400 cursor-not-allowed'
-                            : 'bg-blue-600 hover:bg-blue-500 text-white border-transparent shadow-lg shadow-blue-500/20'
-                            }`}
-                        title="Force sync all projects from GitHub"
+                        className="btn-primary flex items-center gap-2"
                     >
-                        <span className={`text-lg ${isSyncing ? 'animate-spin' : ''}`}>
-                            {isSyncing ? '↻' : '⚡'}
-                        </span>
-                        {isSyncing ? 'Syncing...' : 'Sync All Stats'}
+                        {isSyncing ? (
+                            <>
+                                <div className="animate-spin w-5 h-5 border-2 border-white/30 border-t-white rounded-full"></div>
+                                Syncing...
+                            </>
+                        ) : (
+                            <>
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                </svg>
+                                Sync All Stats
+                            </>
+                        )}
                     </button>
                 </div>
 
                 {/* Quick Team Stats */}
                 <div className="grid grid-cols-4 gap-4">
-                    {(() => {
-                        // Calculate Team Stats Aggregation
-                        const teamCommits = collaborationData?.members?.reduce((acc, member) => acc + (member.contributions || 0), 0) || counters.commits;
-                        const activeRepos = collaborationData?.collaborations?.length ? Math.ceil(collaborationData.collaborations.length / 2) : counters.repos; // Approx from edges or use counters.repos as fallback
-
-                        return [
-                            { label: 'Total Commits', value: teamCommits, color: 'blue' },
-                            { label: 'Team PRs', value: counters.prs, color: 'blue' }, // TODO: Aggregate PRs in backend
-                            { label: 'Active Repos', value: counters.repos, color: 'blue' }, // Use user's total repos for now
-                            { label: 'Team Size', value: collaborationData?.members?.length || 1, color: 'blue' },
-                        ].map((stat, i) => (
-                            <div key={i} className="text-center">
-                                <div className="text-3xl font-bold text-blue-400">{stat.value}</div>
-                                <div className="text-xs text-slate-500 mt-1">{stat.label}</div>
-                            </div>
-                        ));
-                    })()}
+                    {[
+                        { label: 'Total Commits', value: teamStats?.total_commits || 0, color: 'blue' },
+                        { label: 'Team PRs', value: teamStats?.total_prs || 0, color: 'blue' },
+                        { label: 'Active Repos', value: teamStats?.active_repos || 0, color: 'blue' },
+                        { label: 'Team Size', value: collaborationData?.members?.length || 1, color: 'blue' },
+                    ].map((stat, i) => (
+                        <div key={i} className="text-center">
+                            <div className="text-3xl font-bold text-blue-400">{stat.value}</div>
+                            <div className="text-xs text-slate-500 mt-1">{stat.label}</div>
+                        </div>
+                    ))}
                 </div>
             </div>
 
@@ -216,7 +232,7 @@ const ProfilePage: React.FC = () => {
 
             {/* Animated Commit Graph */}
             <ErrorBoundary name="Commit Graph">
-                <AnimatedCommitGraph />
+                <AnimatedCommitGraph data={analytics?.commitTrend || []} />
             </ErrorBoundary>
 
             {/* Stats Grid */}

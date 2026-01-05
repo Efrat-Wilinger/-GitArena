@@ -78,7 +78,7 @@ class GitHubService:
         repos = self.repository.get_user_repositories(user_id)
         return [RepositoryResponse.model_validate(repo) for repo in repos]
     
-    async def fetch_repository_commits(self, owner: str, repo: str, access_token: str, per_page: int = 50) -> List[dict]:
+    async def fetch_repository_commits(self, owner: str, repo: str, access_token: str, per_page: int = 100) -> List[dict]:
         """Fetch commits from GitHub API"""
         async with httpx.AsyncClient() as client:
             response = await client.get(
@@ -124,7 +124,7 @@ class GitHubService:
         
         # Identify which commits need details
         new_gh_commits = []
-        for gh_commit in github_commits[:50]:
+        for gh_commit in github_commits[:100]:
             if not self.repository.get_commit_by_sha(gh_commit["sha"]):
                 new_gh_commits.append(gh_commit)
         
