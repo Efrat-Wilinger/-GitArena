@@ -124,13 +124,8 @@ const ProjectSelectionPage: React.FC = () => {
 
                 {/* Action Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
-<<<<<<< HEAD
-                    {/* Continue with Recent Project */}
-                    <div className="group relative bg-gradient-to-br from-cyan-600/10 via-blue-600/10 to-purple-600/10 backdrop-blur-xl border border-cyan-500/30 rounded-2xl p-8 overflow-hidden transition-all duration-300 hover:border-cyan-500 hover:shadow-2xl hover:shadow-cyan-500/20">
-=======
                     {/* Continue with Projects */}
                     <div className="group relative bg-gradient-to-br from-cyan-600/10 via-blue-600/10 to-purple-600/10 backdrop-blur-xl border border-cyan-500/30 rounded-2xl p-8 transition-all duration-300 overflow-hidden hover:border-cyan-500 hover:shadow-2xl hover:shadow-cyan-500/20">
->>>>>>> b104e36c82bdc22820d1b38717fc5f84a6ac651e
                         {/* Glow Effect */}
                         <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/0 to-blue-500/0 group-hover:from-cyan-500/5 group-hover:to-blue-500/5 transition-all duration-500"></div>
 
@@ -150,55 +145,12 @@ const ProjectSelectionPage: React.FC = () => {
                                 Select a project to continue
                             </p>
 
-<<<<<<< HEAD
-                            {spaces && spaces.length > 0 ? (
-                                <>
-                                    <p className="text-gray-400 mb-4">
-                                        Pick up where you left off
-                                    </p>
-                                    <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                                        {[...spaces].sort((a, b) =>
-                                            new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
-                                        ).map((project) => (
-                                            <div
-                                                key={project.id}
-                                                onClick={() => handleContinue(project)}
-                                                className="bg-black/30 rounded-lg p-4 border border-gray-700/50 hover:border-cyan-500/50 cursor-pointer transition-all duration-200 hover:bg-black/40"
-                                            >
-                                                <div className="flex items-start gap-3">
-                                                    <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold flex-shrink-0">
-                                                        {project.name.charAt(0).toUpperCase()}
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <h4 className="font-semibold text-white truncate">{project.name}</h4>
-                                                        <p className="text-sm text-gray-500 line-clamp-1">{project.description || 'No description'}</p>
-                                                        <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
-                                                            <span>{project.members_count} member{project.members_count !== 1 ? 's' : ''}</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </>
-                            ) : (
-                                <p className="text-gray-400">
-                                    No projects yet. Create your first one!
-                                </p>
-                            )}
-=======
                             <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
                                 {spaces && spaces.length > 0 ? (
                                     spaces.map((project) => (
                                         <div
                                             key={project.id}
-                                            onClick={() => {
-                                                setCurrentProjectId(project.id);
-                                                setCurrentProjectName(project.name);
-                                                fetchAndSetUserRole(project.id).then(() => {
-                                                    navigate('/manager/dashboard'); // Default to manager dashboard for now, role check handles redirection usually but let's be safe
-                                                });
-                                            }}
+                                            onClick={() => handleContinue(project)}
                                             className="bg-black/30 hover:bg-white/5 rounded-lg p-4 border border-gray-700/50 hover:border-cyan-500/50 cursor-pointer transition-all flex items-center gap-3 group/item"
                                         >
                                             <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold flex-shrink-0 shadow-lg group-hover/item:scale-110 transition-transform">
@@ -221,17 +173,16 @@ const ProjectSelectionPage: React.FC = () => {
                                     </div>
                                 )}
                             </div>
->>>>>>> b104e36c82bdc22820d1b38717fc5f84a6ac651e
-                        </div>
-                    </div>
+                        </div >
+                    </div >
 
                     {/* Start New Project */}
-                    <div
+                    < div
                         onClick={handleNewProject}
                         className="group relative bg-gradient-to-br from-purple-600/10 via-pink-600/10 to-orange-600/10 backdrop-blur-xl border border-purple-500/30 rounded-2xl p-8 cursor-pointer hover:border-purple-500 transition-all duration-300 overflow-hidden hover:scale-[1.02] hover:shadow-2xl hover:shadow-purple-500/20"
                     >
                         {/* Glow Effect */}
-                        <div className="absolute inset-0 bg-gradient-to-br from-purple-500/0 to-pink-500/0 group-hover:from-purple-500/5 group-hover:to-pink-500/5 transition-all duration-500"></div>
+                        < div className="absolute inset-0 bg-gradient-to-br from-purple-500/0 to-pink-500/0 group-hover:from-purple-500/5 group-hover:to-pink-500/5 transition-all duration-500" ></div >
 
                         <div className="relative z-10">
                             {/* Icon */}
@@ -280,22 +231,6 @@ const ProjectSelectionPage: React.FC = () => {
                         </div>
                     </div>
                 </div>
-<<<<<<< HEAD
-
-                {/* Quick Links */}
-                <div className="flex items-center justify-center gap-4 text-sm">
-                    <button
-                        onClick={handleGoToDashboard}
-                        className="text-gray-400 hover:text-white transition-colors flex items-center gap-2"
-                    >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                        </svg>
-                        Go to dashboard
-                    </button>
-                </div>
-=======
->>>>>>> b104e36c82bdc22820d1b38717fc5f84a6ac651e
             </div>
         </div>
     );
