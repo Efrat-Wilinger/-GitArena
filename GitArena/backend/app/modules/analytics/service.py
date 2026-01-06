@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from app.shared.models import SpaceMember, User, Commit, Repository, Space
-from sqlalchemy import func
+from sqlalchemy import func, desc
 from app.modules.analytics.repository import AnalyticsRepository
 from app.modules.analytics.dto import DashboardStats
 from app.modules.users.repository import UserRepository
@@ -94,44 +94,48 @@ class AnalyticsService:
             if not repo_ids:
                 return {}
 
-            # 1. Weekly Activity (Commits per day for last 7 days)
-            # Use raw SQL for date grouping compatibility
+            # 1. Weekly Activity (Commits per day for current week - Mon-Sun)
+            # Map to [Mon, Tue, Wed, Thu, Fri, Sat, Sun] format that frontend expects
             from datetime import datetime, timedelta
             today = datetime.utcnow()
-            week_ago = today - timedelta(days=6)
             
+            # Calculate start of current week (Monday)
+            days_since_monday = today.weekday()  # 0=Monday, 6=Sunday
+            monday_this_week = today - timedelta(days=days_since_monday)
+            monday_this_week = monday_this_week.replace(hour=0, minute=0, second=0, microsecond=0)
+            
+            # Initialize activity array for Mon-Sun
             activity = [0] * 7
-            commits_last_week = self.db.query(Commit).filter(
+            
+            # Get commits from this week (Monday to Sunday) for weekly activity
+            commits_this_week = self.db.query(Commit).filter(
                 Commit.repository_id.in_(repo_ids),
-                Commit.committed_date >= week_ago
+                Commit.committed_date >= monday_this_week
             ).all()
             
-            print(f"DEBUG: ManagerStats - Found {len(commits_last_week)} commits in last week")
+            print(f"DEBUG: ManagerStats - Found {len(commits_this_week)} commits this week (since {monday_this_week.date()})")
 
-            for commit in commits_last_week:
-                day_diff = (today.date() - commit.committed_date.date()).days
-                if 0 <= day_diff < 7:
-                    # Invert index so 0=Monday is tricky, let's just map to last 7 days from today
-                    # Actually frontend expects Mon-Sun usually, let's align with today
-                    # Simplified: [Mon, Tue, Wed, Thu, Fri, Sat, Sun]
-                    # We'll map commit.committed_date.weekday() (0=Monday) directly
-                    idx = commit.committed_date.weekday()
-                    activity[idx] += 1
+            for commit in commits_this_week:
+                # Map to weekday: 0=Monday, 1=Tuesday, ..., 6=Sunday
+                weekday_index = commit.committed_date.weekday()
+                if 0 <= weekday_index < 7:
+                    activity[weekday_index] += 1
+            
+            print(f"DEBUG: ManagerStats - Weekly activity: {activity}")
 
-            # 2. Top Repositories (by activity/stars)
+            # 2. Top Repositories (by activity/stars) - ALL TIME
             top_repos = []
             for r in repos:
-                 # Calculate simple "hotness" score: stars * 5 + recent_commits
-                 recent_count = self.db.query(Commit).filter(
-                     Commit.repository_id == r.id,
-                     Commit.committed_date >= week_ago
+                 # Calculate simple "hotness" score: stars * 5 + all-time commits
+                 all_commits_count = self.db.query(Commit).filter(
+                     Commit.repository_id == r.id
                  ).count()
-                 score = (r.stargazers_count or 0) * 5 + recent_count
+                 score = (r.stargazers_count or 0) * 5 + all_commits_count
                  top_repos.append({
                      "name": r.name,
                      "language": r.language or "Unknown",
                      "stars": r.stargazers_count or 0,
-                     "trend": f"+{recent_count}",
+                     "trend": f"+{all_commits_count}",
                      "score": score
                  })
             
@@ -190,12 +194,30 @@ class AnalyticsService:
                  {"label": "Closed", "count": pr_closed, "color": "text-red-400", "bgColor": "bg-red-500/10"}
             ]
 
+            # 6. Peak Hours (ALL TIME)
+            peak_hours = [0] * 24
+            all_commits_for_hours = self.db.query(Commit).filter(
+                Commit.repository_id.in_(repo_ids)
+            ).all()
+            for commit in all_commits_for_hours:
+                peak_hours[commit.committed_date.hour] += 1
+
+            # 7. Files Changed (this week)
+            files_changed_data = {
+                "filesModified": len(commits_this_week),
+                "linesAdded": sum((c.additions or 0) for c in commits_this_week),
+                "linesDeleted": sum((c.deletions or 0) for c in commits_this_week),
+                "netChange": sum((c.additions or 0) - (c.deletions or 0) for c in commits_this_week)
+            }
+
             return {
                 "activity": activity,
                 "topRepos": top_repos,
                 "recentCommits": recent_commits,
                 "languages": languages,
-                "prStats": pr_stats
+                "prStats": pr_stats,
+                "peakHours": peak_hours,
+                "filesChanged": files_changed_data
             }
 
         except Exception as e:
@@ -234,17 +256,26 @@ class AnalyticsService:
             # Add current user first
             current_user = self.user_repository.get_by_id(user_id)
             if current_user:
+                # Count commits by this user (match by email or username in commit author)
+                user_commits = self.db.query(Commit).join(Repository).filter(
+                    Repository.space_id.in_(space_ids),
+                    (Commit.author_email == current_user.email) | (Commit.author_name == current_user.username)
+                ).count()
+                
                 members_data.append({
                     "id": str(current_user.id),
                     "name": "You",
                     "avatar": current_user.avatar_url,
-                    "contributions": self.db.query(Commit).join(Repository).filter(Repository.user_id == user_id).count()
+                    "contributions": user_commits
                 })
 
             peer_map = {}
             for peer in peers:
-                # Count contributions (total commits for now as proxy)
-                contribs = self.db.query(Commit).join(Repository).filter(Repository.user_id == peer.id).count()
+                # Count contributions: commits by this peer (match by email or username)
+                contribs = self.db.query(Commit).join(Repository).filter(
+                    Repository.space_id.in_(space_ids),
+                    (Commit.author_email == peer.email) | (Commit.author_name == peer.username)
+                ).count()
                 
                 members_data.append({
                     "id": str(peer.id),
@@ -418,21 +449,21 @@ class AnalyticsService:
             if not repo_ids:
                 return {}
 
-            # 1. Commit Trend (Global)
+            # 1. Commit Trend (ALL TIME - grouped by date)
             from datetime import datetime, timedelta
             from collections import defaultdict
             
-            days = 30
-            if "90" in str(time_range): days = 90
-            elif "180" in str(time_range): days = 180
+            print(f"DEBUG: get_manager_deep_dive_analytics - User {user_id}, Project {project_id}")
+            print(f"DEBUG: Space IDs: {space_ids}")
+            print(f"DEBUG: Repo IDs: {repo_ids}")
+            print(f"DEBUG: Fetching ALL commits (no date filter)")
             
-            start_date = datetime.utcnow() - timedelta(days=days)
-            
-            # Fetch raw commits to aggregate in Python (safer for DB compatibility & richer data)
+            # Fetch ALL commits to aggregate in Python
             commits = self.db.query(Commit).filter(
-                Commit.repository_id.in_(repo_ids),
-                Commit.committed_date >= start_date
+                Commit.repository_id.in_(repo_ids)
             ).order_by(Commit.committed_date.asc()).all()
+            
+            print(f"DEBUG: Found {len(commits)} total commits")
             
             # Aggregate by date
             daily_stats = defaultdict(lambda: {"count": 0, "additions": 0, "deletions": 0})

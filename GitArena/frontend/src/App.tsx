@@ -114,9 +114,9 @@ function App() {
                             {/* Shared Routes */}
                             <Route path="readme/:repoId" element={<ReadmeViewerPage />} />
                             <Route path="repositories" element={<RepositoriesPage />} />
-                            <Route path="repositories/:repositoryId/commits" element={<CommitsPage />} />
-                            <Route path="repositories/:repositoryId/code" element={<RepositoryCodePage />} />
-                            <Route path="repositories/:repositoryId/team-analysis" element={<RepositoryTeamAnalysisPage />} />
+                            <Route path="repositories/:repoId/commits" element={<CommitsPage />} />
+                            <Route path="repositories/:repoId/code" element={<RepositoryCodePage />} />
+                            <Route path="repositories/:repoId/team-analysis" element={<RepositoryTeamAnalysisPage />} />
                             <Route path="ai-feedback-history" element={<AIFeedbackHistoryPage />} />
                             <Route path="projects" element={<ProjectsPage />} />
                             <Route path="projects/new" element={<CreateProjectPage />} />

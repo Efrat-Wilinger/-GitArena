@@ -4,7 +4,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { authApi, User } from '../api/auth';
 import apiClient from '../api/client';
 import TeamCollaborationNetwork from '../components/TeamCollaborationNetwork';
-import { LanguageDistribution, RecentCommits, PullRequestStatus, WeeklyActivity } from '../components/DashboardWidgets';
+import { LanguageDistribution, RecentCommits, PullRequestStatus } from '../components/DashboardWidgets';
+import { PeakHours, FilesChanged } from '../components/NewDashboardWidgets';
 import RoleBasedView, { useUserRole } from '../components/RoleBasedView';
 import { githubApi, TeamCollaborationResponse } from '../api/github';
 import AIInsights from '../components/AIInsights';
@@ -61,9 +62,15 @@ const ProfilePage: React.FC = () => {
         enabled: userRole === 'manager',
     });
 
-    const { data: analytics } = useQuery({
+    const { data: analytics, isLoading: analyticsLoading, error: analyticsError } = useQuery({
         queryKey: ['managerDeepDive', '30days', currentProjectId],
-        queryFn: () => githubApi.getManagerAnalytics('30days', currentProjectId),
+        queryFn: async () => {
+            console.log('🔵 Fetching manager analytics for project:', currentProjectId);
+            const result = await githubApi.getManagerAnalytics('30days', currentProjectId);
+            console.log('🟢 Manager analytics received:', result);
+            console.log('📊 Commit trend data:', result?.commitTrend);
+            return result;
+        },
         enabled: userRole === 'manager'
     });
 
@@ -289,9 +296,9 @@ const ProfilePage: React.FC = () => {
 
             {/* Stats Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <WeeklyActivity data={managerStats?.activity} />
                 <PullRequestStatus data={managerStats?.prStats} />
-                <LanguageDistribution data={managerStats?.languages} />
+                <PeakHours data={managerStats?.peakHours} />
+                <FilesChanged data={managerStats?.filesChanged} />
             </div>
 
             {/* Recent Activity */}
@@ -368,8 +375,7 @@ const ProfilePage: React.FC = () => {
             </ErrorBoundary>
 
             {/* Stats Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <WeeklyActivity />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <PullRequestStatus />
                 <LanguageDistribution />
             </div>

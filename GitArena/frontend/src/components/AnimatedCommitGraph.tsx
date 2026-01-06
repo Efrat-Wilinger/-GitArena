@@ -101,6 +101,14 @@ export const AnimatedCommitGraph: React.FC<AnimatedCommitGraphProps> = ({ data: 
 
                                     {/* Bar */}
                                     <div className="w-full relative">
+                                        {/* Commit count label - always visible */}
+                                        {item.count > 0 && (
+                                            <div className={`absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-semibold transition-all duration-200
+                                                ${isHovered ? 'text-blue-300 scale-110' : 'text-slate-500'}`}>
+                                                {item.count}
+                                            </div>
+                                        )}
+
                                         <div
                                             className={`w-full bg-gradient-blue rounded-t transition-all duration-500 ease-out
                                                 ${isHovered ? 'opacity-100 scale-x-110' : 'opacity-80 hover:opacity-100'}`}
