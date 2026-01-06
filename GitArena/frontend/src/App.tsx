@@ -20,7 +20,6 @@ import { ProjectProvider } from './contexts/ProjectContext';
 import TeamManagementPage from './pages/manager/TeamManagementPage';
 import ActivityJournalPage from './pages/manager/ActivityJournalPage';
 import SettingsPage from './pages/manager/SettingsPage';
-import AnalyticsPage from './pages/AnalyticsPage';
 
 // Member pages
 import MemberDashboardPage from './pages/member/MemberDashboardPage';
@@ -85,11 +84,7 @@ function App() {
                                         <ActivityJournalPage />
                                     </ProtectedRoute>
                                 } />
-                                <Route path="analytics" element={
-                                    <ProtectedRoute requiredRole="manager">
-                                        <AnalyticsPage />
-                                    </ProtectedRoute>
-                                } />
+
                                 <Route path="settings" element={
                                     <ProtectedRoute requiredRole="manager">
                                         <SettingsPage />

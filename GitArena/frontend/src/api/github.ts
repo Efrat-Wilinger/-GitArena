@@ -153,8 +153,10 @@ export const githubApi = {
         return response.data;
     },
 
-    getTeamCollaboration: async (): Promise<TeamCollaborationResponse> => {
-        const response = await apiClient.get('/analytics/collaboration');
+    getTeamCollaboration: async (projectId?: number): Promise<TeamCollaborationResponse> => {
+        const response = await apiClient.get('/analytics/collaboration', {
+            params: { project_id: projectId }
+        });
         return response.data;
     },
 

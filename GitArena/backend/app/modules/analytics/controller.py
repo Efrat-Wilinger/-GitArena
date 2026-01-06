@@ -21,15 +21,17 @@ async def get_dashboard_stats(
 
 @router.get("/collaboration", response_model=dict)
 async def get_team_collaboration(
+    project_id: int = None,
     current_user: UserResponse = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
     Get team collaboration network data
     Returns nodes (members) and links (collaborations)
+    Optionally filtered by project_id
     """
     service = AnalyticsService(db)
-    return service.get_team_collaboration(current_user.id)
+    return service.get_team_collaboration(current_user.id, project_id)
 
 
 @router.get("/manager-stats", response_model=dict)

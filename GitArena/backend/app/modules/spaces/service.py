@@ -442,7 +442,7 @@ class SpaceService:
             }
 
         # 1. Fetch Commits
-        if not type_filter or type_filter.lower() == 'commit' or type_filter == 'all':
+        if not type_filter or type_filter.lower() in ['commit', 'all']:
             commits = self.db.query(Commit).filter(
                 Commit.repository_id.in_(repo_ids),
                 Commit.committed_date >= start_date
@@ -454,7 +454,7 @@ class SpaceService:
                 ))
 
         # 2. Fetch Pull Requests
-        if not type_filter or type_filter.lower() == 'pr' or type_filter == 'all':
+        if not type_filter or type_filter.lower() in ['pr', 'all']:
             prs = self.db.query(PullRequest).filter(
                 PullRequest.repository_id.in_(repo_ids),
                 PullRequest.created_at >= start_date
@@ -466,7 +466,7 @@ class SpaceService:
                 ))
 
         # 3. Fetch Issues
-        if not type_filter or type_filter.lower() == 'issue' or type_filter == 'all':
+        if not type_filter or type_filter.lower() in ['issue', 'all']:
             issues = self.db.query(Issue).filter(
                 Issue.repository_id.in_(repo_ids),
                 Issue.created_at >= start_date
@@ -479,8 +479,8 @@ class SpaceService:
                 
         # 4. Fetch generic Activity (for releases, deployments, etc.) if needed
         # We assume Activity table might overlap so we only take other types if 'all' or specific
-        other_types = ['release', 'deployment', 'merge']
-        if not type_filter or type_filter in other_types or type_filter == 'all':
+        other_types = ['release', 'deployment', 'merge', 'review', 'deploy']
+        if not type_filter or type_filter.lower() in other_types or type_filter.lower() == 'all':
             activities = self.db.query(Activity).filter(
                 Activity.repository_id.in_(repo_ids),
                 Activity.created_at >= start_date,

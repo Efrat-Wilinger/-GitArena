@@ -124,14 +124,19 @@ async def remove_project_member(
 @router.get("/projects/{project_id}/activity")
 async def get_project_activity(
     project_id: int,
+    type: str = Query(None, alias="type"),
     type_filter: str = Query(None),
     date_range: str = Query("7days"),
+    dateRange: str = Query(None),
     current_user: UserResponse = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get project activity log"""
     service = SpaceService(db)
-    return service.get_activity_log(project_id, type_filter, date_range)
+    # Support both camelCase (from frontend) and snake_case
+    final_type = type or type_filter
+    final_date_range = dateRange or date_range or "7days"
+    return service.get_activity_log(project_id, final_type, final_date_range)
 
 
 @router.get("/projects/{project_id}/analytics")

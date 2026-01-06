@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { authApi, User } from '../api/auth';
 import apiClient from '../api/client';
 import TeamCollaborationNetwork from '../components/TeamCollaborationNetwork';
-import { LanguageDistribution, RecentCommits, PullRequestStatus, TopRepositories, WeeklyActivity } from '../components/DashboardWidgets';
+import { LanguageDistribution, RecentCommits, PullRequestStatus, WeeklyActivity } from '../components/DashboardWidgets';
 import RoleBasedView, { useUserRole } from '../components/RoleBasedView';
 import { githubApi, TeamCollaborationResponse } from '../api/github';
 import AIInsights from '../components/AIInsights';
@@ -35,10 +35,24 @@ const ProfilePage: React.FC = () => {
         enabled: !!user?.id && userRole === 'manager'
     });
 
-    const { data: collaborationData } = useQuery<TeamCollaborationResponse>({
+    const { data: collaborationData, error: collaborationError, isLoading: collaborationLoading } = useQuery<TeamCollaborationResponse>({
         queryKey: ['teamCollaboration', currentProjectId],
-        queryFn: githubApi.getTeamCollaboration, // Note: Collaboration might need filtering too if backend supports it
-        enabled: userRole === 'manager',
+        queryFn: () => {
+            console.log('🔵 Fetching team collaboration for project:', currentProjectId);
+            return githubApi.getTeamCollaboration(currentProjectId);
+        },
+        enabled: userRole === 'manager' && !!currentProjectId,
+    });
+
+    // Debug logging
+    console.log('👥 Team Collaboration Query State:', {
+        currentProjectId,
+        userRole,
+        enabled: userRole === 'manager' && !!currentProjectId,
+        isLoading: collaborationLoading,
+        hasData: !!collaborationData,
+        hasError: !!collaborationError,
+        membersCount: collaborationData?.members?.length
     });
 
     const { data: teamStats } = useQuery({
@@ -83,10 +97,7 @@ const ProfilePage: React.FC = () => {
         onSettled: () => setIsSyncing(false)
     });
 
-    const handleSync = () => {
-        if (isSyncing) return;
-        syncMutation.mutate();
-    };
+
 
 
     const [counters, setCounters] = useState({
@@ -224,10 +235,46 @@ const ProfilePage: React.FC = () => {
 
             {/* Team Collaboration */}
             <ErrorBoundary name="Team Collaboration">
-                <TeamCollaborationNetwork
-                    members={collaborationData?.members || []}
-                    collaborations={collaborationData?.collaborations || []}
-                />
+                {!currentProjectId ? (
+                    <div className="modern-card p-8 text-center min-h-[400px] flex flex-col items-center justify-center">
+                        <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
+                            <span className="w-2 h-8 bg-blue-500 rounded-full"></span>
+                            Team Collaboration
+                        </h3>
+                        <div className="flex-1 flex flex-col items-center justify-center text-slate-500">
+                            <div className="text-4xl mb-4">📊</div>
+                            <p>Please select a project to view team collaboration</p>
+                        </div>
+                    </div>
+                ) : collaborationLoading ? (
+                    <div className="modern-card p-8 text-center min-h-[400px] flex flex-col items-center justify-center">
+                        <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
+                            <span className="w-2 h-8 bg-blue-500 rounded-full"></span>
+                            Team Collaboration
+                        </h3>
+                        <div className="flex-1 flex flex-col items-center justify-center">
+                            <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mb-4"></div>
+                            <p className="text-slate-400">Loading collaboration data...</p>
+                        </div>
+                    </div>
+                ) : collaborationError ? (
+                    <div className="modern-card p-8 text-center min-h-[400px] flex flex-col items-center justify-center">
+                        <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
+                            <span className="w-2 h-8 bg-blue-500 rounded-full"></span>
+                            Team Collaboration
+                        </h3>
+                        <div className="flex-1 flex flex-col items-center justify-center text-slate-500">
+                            <div className="text-4xl mb-4">⚠️</div>
+                            <p>Failed to load team collaboration data</p>
+                            <p className="text-xs mt-2 text-slate-600">Try refreshing the page</p>
+                        </div>
+                    </div>
+                ) : (
+                    <TeamCollaborationNetwork
+                        members={collaborationData?.members || []}
+                        collaborations={collaborationData?.collaborations || []}
+                    />
+                )}
             </ErrorBoundary>
 
             {/* Animated Commit Graph */}
@@ -242,11 +289,8 @@ const ProfilePage: React.FC = () => {
                 <LanguageDistribution data={managerStats?.languages} />
             </div>
 
-            {/* Activity & Repositories */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <RecentCommits data={managerStats?.recentCommits} />
-                <TopRepositories data={managerStats?.topRepos} />
-            </div>
+            {/* Recent Activity */}
+            <RecentCommits data={managerStats?.recentCommits} />
         </div>
     );
 
@@ -336,11 +380,8 @@ const ProfilePage: React.FC = () => {
                 <ContributionHeatmap />
             </div>
 
-            {/* Activity & Repositories */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <RecentCommits />
-                <TopRepositories />
-            </div>
+            {/* Recent Activity */}
+            <RecentCommits />
 
             {/* Achievements */}
             <AchievementsSection />

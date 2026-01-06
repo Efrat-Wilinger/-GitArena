@@ -204,12 +204,18 @@ class AnalyticsService:
             traceback.print_exc()
             return {}
 
-    def get_team_collaboration(self, user_id: int):
+    def get_team_collaboration(self, user_id: int, project_id: int = None):
         """
         Derive team collaboration network from shared spaces and repositories
+        Optionally filtered by a specific project_id
         """
         try:
-            space_ids = self._get_user_team_space_ids(user_id)
+            if project_id:
+                # Use only the specified project
+                space_ids = [project_id]
+            else:
+                # Use all user spaces
+                space_ids = self._get_user_team_space_ids(user_id)
             
             print(f"DEBUG: Analytics - Found {len(space_ids)} spaces for user {user_id}: {space_ids}")
 
