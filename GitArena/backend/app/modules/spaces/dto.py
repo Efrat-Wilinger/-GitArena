@@ -10,11 +10,14 @@ class SpaceBase(BaseModel):
 class SpaceCreate(SpaceBase):
     repository_id: int
 
+from app.modules.github.dto import RepositoryResponse
+
 class SpaceResponse(SpaceBase):
     id: int
     owner_id: int
     created_at: datetime
     members_count: int = 0
+    repositories: List[RepositoryResponse] = []
     
     class Config:
         from_attributes = True

@@ -16,6 +16,23 @@ const CreateProjectPage: React.FC = () => {
         queryFn: () => githubApi.getRepositories(false),
     });
 
+    const { data: existingSpaces } = useQuery<any[]>({
+        queryKey: ['spaces'],
+        queryFn: async () => {
+            const response = await apiClient.get('/spaces/');
+            return response.data;
+        }
+    });
+
+    // Filter out repositories that are already linked to a space
+    const availableRepositories = repositories?.filter(repo => {
+        // Check if this repo ID exists in any of the existing spaces' repositories
+        const isAlreadyImported = existingSpaces?.some(space =>
+            space.repositories?.some((r: any) => r.github_id === String(repo.id) || r.id === repo.id)
+        );
+        return !isAlreadyImported;
+    });
+
     const createSpaceMutation = useMutation({
         mutationFn: async (data: { name: string; description: string; repository_id: number }) => {
             const response = await apiClient.post('/spaces/', data);
@@ -75,7 +92,7 @@ const CreateProjectPage: React.FC = () => {
                         <div className="animate-pulse h-10 bg-gray-700 rounded-lg"></div>
                     ) : (
                         <div className="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto pr-2">
-                            {repositories?.map((repo) => (
+                            {availableRepositories?.map((repo) => (
                                 <div
                                     key={repo.id}
                                     onClick={() => setSelectedRepoId(repo.id)}

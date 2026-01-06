@@ -59,22 +59,27 @@ const ProfilePage: React.FC = () => {
     // Sync mutation
     const syncMutation = useMutation({
         mutationFn: async () => {
-            // For manager view, we sync ALL projects
-            const response = await apiClient.post('/users/sync-projects');
-            return response.data;
+            // Fallback to repo sync if no project context (legacy) or project sync
+            if (contextProjectId) {
+                await apiClient.post(`/spaces/${contextProjectId}/sync`);
+            } else {
+                await githubApi.syncData();
+            }
         },
         onMutate: () => setIsSyncing(true),
-        onSuccess: (data) => {
-            queryClient.invalidateQueries({ queryKey: ['currentUser'] });
-            // Refresh team collaboration too
-            queryClient.invalidateQueries({ queryKey: ['teamCollaboration'] });
+        onSuccess: () => {
+            // Invalidate ALL queries to force a complete refresh of the dashboard
             queryClient.invalidateQueries({ queryKey: ['managerStats'] });
-
-            if (data.failed > 0) {
-                alert(`Sync completed with ${data.failed} errors:\n${data.errors.join('\n')}\nSynced: ${data.total_synced}`);
-            } else {
-                alert(`Successfully synced ${data.total_synced} projects!`);
-            }
+            queryClient.invalidateQueries({ queryKey: ['managerAnalytics'] });
+            queryClient.invalidateQueries({ queryKey: ['managerDeepDive'] });
+            queryClient.invalidateQueries({ queryKey: ['teamStats'] });
+            queryClient.invalidateQueries({ queryKey: ['teamCollaboration'] });
+            queryClient.invalidateQueries({ queryKey: ['spaceActivity'] });
+            queryClient.invalidateQueries({ queryKey: ['managerActivityLog'] });
+            queryClient.invalidateQueries({ queryKey: ['collaborationGraph'] });
+            queryClient.invalidateQueries({ queryKey: ['projectProgress'] });
+            queryClient.invalidateQueries({ queryKey: ['recentActivities'] });
+            queryClient.invalidateQueries({ queryKey: ['currentUser'] }); // Refresh user stats too
         },
         onError: (err) => {
             console.error("Sync failed:", err);
