@@ -24,7 +24,12 @@ async def create_space(
     if not user or not user.access_token:
         raise HTTPException(status_code=400, detail="User not connected to GitHub")
         
-    return await service.create_space_with_contributors(space_data, current_user.id, user.access_token)
+    # Use smart logic: Join existing if repo matches, or create new
+    result = await service.join_or_create_space(space_data, current_user.id, user.access_token)
+    
+    # Check action to determine response code/message if needed, but for now just return the space
+    # The frontend expects a SpaceResponse, so we return the 'space' part of the dict
+    return result["space"]
 
 @router.post("/connect", response_model=dict)
 async def connect_repository(

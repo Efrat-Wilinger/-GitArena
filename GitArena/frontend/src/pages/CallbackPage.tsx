@@ -8,6 +8,7 @@ const CallbackPage: React.FC = () => {
     const [status, setStatus] = useState<string>('Initializing...');
     const [error, setError] = useState<string | null>(null);
     const [isSuccess, setIsSuccess] = useState(false);
+    const processedCode = React.useRef<string | null>(null);
 
     useEffect(() => {
         const handleCallback = async () => {
@@ -18,11 +19,15 @@ const CallbackPage: React.FC = () => {
                 return;
             }
 
+            // Prevent double execution in Strict Mode
+            if (processedCode.current === code) return;
+            processedCode.current = code;
+
             try {
-                setStatus('Received code. Exchanging for access token...');
+                // setStatus('Received code. Exchanging for access token...');
                 const response = await authApi.githubLogin(code);
 
-                setStatus('Token received. Saving session...');
+                // setStatus('Token received. Saving session...');
                 // Store token and user in localStorage
                 localStorage.setItem('token', response.access_token);
                 localStorage.setItem('user', JSON.stringify(response.user));
@@ -41,7 +46,8 @@ const CallbackPage: React.FC = () => {
                     || err.message
                     || 'Failed to complete authentication.';
 
-                // Detailed debug info
+                // Detailed debug info - REMOVED for user friendliness
+                /*
                 const debugInfo = JSON.stringify({
                     status: err.response?.status,
                     statusText: err.response?.statusText,
@@ -49,8 +55,14 @@ const CallbackPage: React.FC = () => {
                     headers: err.response?.headers,
                     message: err.message
                 }, null, 2);
+                */
 
-                setError(`${errorMsg}\n\nDebug Info:\n${debugInfo}`);
+                // Check for specific "bad code" error to give a friendlier message
+                if (String(errorMsg).includes('incorrect or expired')) {
+                    setError('Session expired or invalid. Please try logging in again.');
+                } else {
+                    setError(errorMsg);
+                }
             }
         };
 

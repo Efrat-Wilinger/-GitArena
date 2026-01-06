@@ -5,13 +5,13 @@
 :root {
   --font-inter: 'Inter', system-ui, -apple-system, sans-serif;
 
-  /* Modern 3D Tech - Deep Blue Palette */
+  /* Modern 3D Tech - Deep Blue Palette. */
   --primary-900: #0a0e27;
   /* Deep background */
   --primary-800: #1a1f3a;
   /* Card background */
   --primary-700: #1e2a47;
-  /* Elevated surfaces */
+  /* Elevated surfaces. */
   --primary-600: #1e3a8a;
   /* Blue gradient start */
   --primary-500: #3b82f6;

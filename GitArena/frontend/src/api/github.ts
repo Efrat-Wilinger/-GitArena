@@ -286,5 +286,10 @@ export const githubApi = {
             params: { userId }
         });
         return response.data;
+    },
+
+    syncData: async (): Promise<any> => {
+        const response = await apiClient.post('/users/sync-projects');
+        return response.data;
     }
 };
