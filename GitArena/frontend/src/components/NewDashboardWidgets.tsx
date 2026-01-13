@@ -1,4 +1,5 @@
 import React from 'react';
+import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 interface PeakHoursProps {
     data?: number[];
@@ -7,10 +8,13 @@ interface PeakHoursProps {
 export const PeakHours: React.FC<PeakHoursProps> = ({ data }) => {
     // 24-hour data or zeros
     const hours = data && data.length === 24 ? data : Array(24).fill(0);
-    const maxActivity = Math.max(...hours, 1);
+    const mostActiveHour = hours.indexOf(Math.max(...hours));
 
-    // Group hours into segments for better visualization
-    const timeLabels = ['0h', '3h', '6h', '9h', '12h', '15h', '18h', '21h'];
+    const chartData = hours.map((count, hour) => ({
+        hour: `${hour}h`,
+        count,
+        fullHour: `${hour}:00`
+    }));
 
     return (
         <div className="modern-card p-6">
@@ -19,45 +23,42 @@ export const PeakHours: React.FC<PeakHoursProps> = ({ data }) => {
                 Peak Hours
             </h3>
 
-            <div className="space-y-4">
-                <div className="flex items-end justify-between gap-1 h-32">
-                    {hours.map((count, index) => {
-                        const heightPercentage = (count / maxActivity) * 100;
-                        return (
-                            <div key={index} className="flex-1 flex flex-col items-center gap-1">
-                                <div className="w-full flex items-end justify-center flex-1">
-                                    <div
-                                        className="w-full bg-gradient-to-t from-purple-600 to-pink-500 rounded-t transition-all duration-500 hover:opacity-80 cursor-pointer relative group"
-                                        style={{ height: `${heightPercentage}%`, minHeight: count > 0 ? '4px' : '0' }}
-                                    >
-                                        {count > 0 && (
-                                            <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-slate-900 px-2 py-1 rounded text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
-                                                {index}:00 - {count} commits
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
+            <div className="h-[200px] w-full mt-4">
+                <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={chartData} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
+                        <XAxis
+                            dataKey="hour"
+                            stroke="#64748b"
+                            tick={{ fill: '#64748b', fontSize: 10 }}
+                            tickLine={false}
+                            axisLine={false}
+                            interval={3}
+                        />
+                        <Tooltip
+                            cursor={{ fill: 'rgba(168, 85, 247, 0.1)' }}
+                            contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px' }}
+                            itemStyle={{ color: '#d8b4fe' }}
+                            labelStyle={{ color: '#94a3b8' }}
+                            formatter={(value: number) => [`${value} commits`, 'Activity']}
+                        />
+                        <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                            {chartData.map((_, index) => (
+                                <Cell
+                                    key={`cell-${index}`}
+                                    fill={index === mostActiveHour ? '#a855f7' : '#4b5563'}
+                                    fillOpacity={index === mostActiveHour ? 1 : 0.5}
+                                />
+                            ))}
+                        </Bar>
+                    </BarChart>
+                </ResponsiveContainer>
+            </div>
 
-                {/* Hour labels */}
-                <div className="flex justify-between text-xs text-slate-500 px-1">
-                    {timeLabels.map((label, i) => (
-                        <span key={i}>{label}</span>
-                    ))}
-                </div>
-
-                {/* Summary */}
-                <div className="mt-4 p-3 bg-slate-800/30 rounded-lg">
-                    <div className="flex items-center justify-between text-sm">
-                        <span className="text-slate-400">Most Active Hour</span>
-                        <span className="text-purple-400 font-semibold">
-                            {hours.indexOf(Math.max(...hours))}:00 ({Math.max(...hours)} commits)
-                        </span>
-                    </div>
-                </div>
+            <div className="mt-4 flex items-center justify-between text-sm px-2">
+                <span className="text-slate-400">Most Active</span>
+                <span className="text-purple-400 font-bold bg-purple-500/10 px-3 py-1 rounded-full">
+                    {mostActiveHour}:00 ({hours[mostActiveHour]} commits)
+                </span>
             </div>
         </div>
     );

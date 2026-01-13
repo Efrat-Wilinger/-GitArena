@@ -15,6 +15,17 @@ export interface Repository {
     created_at: string;
 }
 
+export interface Quest {
+    id: string;
+    title: string;
+    description?: string;
+    target: number;
+    metric: 'commits' | 'prs' | 'issues' | 'reviews';
+    reward?: string;
+    createdAt?: string;
+    project_id?: number;
+}
+
 export interface Commit {
     id: number;
     sha: string;
@@ -291,5 +302,23 @@ export const githubApi = {
     syncData: async (): Promise<any> => {
         const response = await apiClient.post('/users/sync-projects');
         return response.data;
+    },
+
+    getQuests: async (projectId?: number): Promise<Quest[]> => {
+        const response = await apiClient.get('/analytics/quests', {
+            params: { project_id: projectId }
+        });
+        return response.data;
+    },
+
+    createQuest: async (quest: Partial<Quest>, projectId?: number): Promise<Quest> => {
+        const response = await apiClient.post('/analytics/quests', quest, {
+            params: { project_id: projectId }
+        });
+        return response.data;
+    },
+
+    deleteQuest: async (questId: string): Promise<void> => {
+        await apiClient.delete(`/analytics/quests/${questId}`);
     }
 };

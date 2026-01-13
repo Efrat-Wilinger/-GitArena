@@ -1,10 +1,12 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.shared.database import get_db
 from app.modules.analytics.service import AnalyticsService
-from app.modules.analytics.dto import DashboardStats
+from app.modules.analytics.dto import DashboardStats, QuestCreate, QuestResponse
 from app.modules.users.controller import get_current_user
 from app.modules.users.dto import UserResponse
+from app.shared.models import Quest
+from typing import List, Optional
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
@@ -93,3 +95,55 @@ async def get_team_stats(
     """
     service = AnalyticsService(db)
     return service.get_team_stats(current_user.id, project_id)
+
+
+# Quest Endpoints
+@router.post("/quests", response_model=QuestResponse)
+async def create_quest(
+    quest_in: QuestCreate,
+    project_id: Optional[int] = None,
+    current_user: UserResponse = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Create a new team quest"""
+    # Allow all authenticated users to create quests
+    db_quest = Quest(
+        **quest_in.model_dump(),
+        project_id=project_id
+    )
+    db.add(db_quest)
+    db.commit()
+    db.refresh(db_quest)
+    return db_quest
+
+
+@router.get("/quests", response_model=List[QuestResponse])
+async def get_quests(
+    project_id: Optional[int] = None,
+    current_user: UserResponse = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get all quests for a project (or all if no project specified)"""
+    query = db.query(Quest)
+    if project_id:
+        query = query.filter(Quest.project_id == project_id)
+    return query.all()
+
+
+@router.delete("/quests/{quest_id}")
+async def delete_quest(
+    quest_id: int,
+    current_user: UserResponse = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Delete a quest"""
+    if current_user.role != "manager":
+        raise HTTPException(status_code=403, detail="Only managers can delete quests")
+        
+    db_quest = db.query(Quest).filter(Quest.id == quest_id).first()
+    if not db_quest:
+        raise HTTPException(status_code=404, detail="Quest not found")
+        
+    db.delete(db_quest)
+    db.commit()
+    return {"status": "success"}

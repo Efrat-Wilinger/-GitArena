@@ -1,4 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
+import {
+    AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+} from 'recharts';
 
 interface CommitData {
     date: string;
@@ -9,173 +12,100 @@ interface CommitData {
 
 interface AnimatedCommitGraphProps {
     data?: CommitData[];
-    repoId?: string; // Keep for backward compatibility if needed, though data prop is preferred
+    repoId?: string;
 }
 
-export const AnimatedCommitGraph: React.FC<AnimatedCommitGraphProps> = ({ data: initialData }) => {
-    const [data, setData] = useState<CommitData[]>([]);
-    const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+export const AnimatedCommitGraph: React.FC<AnimatedCommitGraphProps> = ({ data = [] }) => {
+    // Ensure we have data to display
+    const chartData = data.length > 0 ? data : [];
 
-    useEffect(() => {
-        if (initialData && initialData.length > 0) {
-            setData(initialData);
-        } else {
-            // Fallback or empty state if no data provided
-            setData([]);
-        }
-    }, [initialData]);
+    const totalCommits = chartData.reduce((acc, curr) => acc + curr.count, 0);
+    const totalAdditions = chartData.reduce((acc, curr) => acc + (curr.additions || 0), 0);
+    const totalDeletions = chartData.reduce((acc, curr) => acc + (curr.deletions || 0), 0);
 
-    const maxCount = Math.max(...data.map(d => d.count), 1);
-
-
+    if (chartData.length === 0) {
+        return (
+            <div className="modern-card p-8 flex items-center justify-center min-h-[300px]">
+                <div className="text-center text-slate-500">
+                    <div className="text-4xl mb-4">📉</div>
+                    <p>No commit activity to display</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
-        <div className="modern-card p-8 relative overflow-hidden">
-            {/* Animated background */}
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/3 to-transparent"></div>
-
-            <div className="relative z-10">
-                <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                        <span className="w-2 h-8 bg-blue-500 rounded-full animate-pulse"></span>
-                        Commit Activity
-                    </h3>
-                    <div className="flex gap-4 text-sm">
-                        <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full bg-green-400"></div>
-                            <span className="text-slate-400">Additions</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full bg-red-400"></div>
-                            <span className="text-slate-400">Deletions</span>
-                        </div>
+        <div className="modern-card p-6">
+            <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                    <span className="w-2 h-8 bg-blue-500 rounded-full animate-pulse"></span>
+                    Commit Activity
+                </h3>
+                <div className="flex gap-6 text-sm">
+                    <div className="text-center">
+                        <div className="text-blue-400 font-bold text-lg">{totalCommits}</div>
+                        <div className="text-slate-500 text-xs uppercase">Commits</div>
                     </div>
-                </div>
-
-                {/* Graph */}
-                <div className="relative h-64">
-                    {/* Y-axis labels */}
-                    <div className="absolute left-0 top-0 bottom-0 flex flex-col justify-between text-xs text-slate-500 pr-4">
-                        {[maxCount, Math.floor(maxCount * 0.75), Math.floor(maxCount * 0.5), Math.floor(maxCount * 0.25), 0].map((val, i) => (
-                            <div key={i}>{val}</div>
-                        ))}
+                    <div className="text-center">
+                        <div className="text-green-400 font-bold text-lg">+{totalAdditions.toLocaleString()}</div>
+                        <div className="text-slate-500 text-xs uppercase">Added</div>
                     </div>
-
-                    {/* Grid lines */}
-                    <div className="absolute left-12 right-0 top-0 bottom-0">
-                        {[0, 1, 2, 3, 4].map((i) => (
-                            <div key={i} className="absolute w-full border-t border-slate-800/50"
-                                style={{ top: `${i * 25}%` }}></div>
-                        ))}
+                    <div className="text-center">
+                        <div className="text-red-400 font-bold text-lg">-{totalDeletions.toLocaleString()}</div>
+                        <div className="text-slate-500 text-xs uppercase">Deleted</div>
                     </div>
-
-                    {/* Bars */}
-                    <div className="absolute left-12 right-0 top-0 bottom-0 flex items-end gap-1">
-                        {data.map((item, index) => {
-                            const heightPercentage = (item.count / maxCount) * 100;
-                            const isHovered = hoveredIndex === index;
-
-                            return (
-                                <div
-                                    key={index}
-                                    className="flex-1 flex flex-col items-center gap-1 cursor-pointer group"
-                                    onMouseEnter={() => setHoveredIndex(index)}
-                                    onMouseLeave={() => setHoveredIndex(null)}
-                                >
-                                    {/* Tooltip */}
-                                    {isHovered && (
-                                        <div className="absolute -top-24 bg-slate-900 border border-slate-700 rounded-lg p-3 shadow-xl z-20 min-w-[180px]"
-                                            style={{
-                                                left: `${(index / data.length) * 100}%`,
-                                                transform: 'translateX(-50%)',
-                                                animation: 'fadeIn 0.2s ease-out'
-                                            }}>
-                                            <div className="text-xs text-slate-400 mb-1">{item.date}</div>
-                                            <div className="text-white font-bold mb-2">{item.count} commits</div>
-                                            <div className="flex gap-3 text-xs">
-                                                <span className="text-green-400">+{item.additions}</span>
-                                                <span className="text-red-400">-{item.deletions}</span>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Bar */}
-                                    <div className="w-full relative">
-                                        {/* Commit count label - always visible */}
-                                        {item.count > 0 && (
-                                            <div className={`absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-semibold transition-all duration-200
-                                                ${isHovered ? 'text-blue-300 scale-110' : 'text-slate-500'}`}>
-                                                {item.count}
-                                            </div>
-                                        )}
-
-                                        <div
-                                            className={`w-full bg-gradient-blue rounded-t transition-all duration-500 ease-out
-                                                ${isHovered ? 'opacity-100 scale-x-110' : 'opacity-80 hover:opacity-100'}`}
-                                            style={{
-                                                height: `${heightPercentage}%`,
-                                                minHeight: '2px',
-                                                animation: `growUp 0.8s ease-out ${index * 0.02}s both`,
-                                                boxShadow: isHovered ? '0 0 20px rgba(59, 130, 246, 0.5)' : 'none'
-                                            }}
-                                        />
-
-                                        {/* Glow effect on hover */}
-                                        {isHovered && (
-                                            <div className="absolute inset-0 bg-blue-500/20 rounded-t blur-sm"></div>
-                                        )}
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-
-                {/* X-axis labels */}
-                <div className="mt-4 ml-12 flex justify-between text-xs text-slate-500">
-                    <span>{data[0]?.date}</span>
-                    <span>{data[Math.floor(data.length / 2)]?.date}</span>
-                    <span>{data[data.length - 1]?.date}</span>
-                </div>
-
-                {/* Stats Summary */}
-                <div className="mt-6 grid grid-cols-3 gap-4">
-                    {[
-                        { label: 'Total Commits', value: data.reduce((sum, d) => sum + d.count, 0), color: 'text-blue-400' },
-                        { label: 'Lines Added', value: data.reduce((sum, d) => sum + (d.additions || 0), 0), color: 'text-green-400' },
-                        { label: 'Lines Removed', value: data.reduce((sum, d) => sum + (d.deletions || 0), 0), color: 'text-red-400' },
-                    ].map((stat, i) => (
-                        <div key={i} className="text-center p-3 rounded-lg bg-slate-800/30">
-                            <div className={`text-2xl font-bold ${stat.color}`}>{stat.value.toLocaleString()}</div>
-                            <div className="text-xs text-slate-500 mt-1">{stat.label}</div>
-                        </div>
-                    ))}
                 </div>
             </div>
 
-            <style>{`
-                @keyframes growUp {
-                    from {
-                        transform: scaleY(0);
-                        transform-origin: bottom;
-                    }
-                    to {
-                        transform: scaleY(1);
-                        transform-origin: bottom;
-                    }
-                }
-
-                @keyframes fadeIn {
-                    from {
-                        opacity: 0;
-                        transform: translateX(-50%) translateY(-5px);
-                    }
-                    to {
-                        opacity: 1;
-                        transform: translateX(-50%) translateY(0);
-                    }
-                }
-            `}</style>
+            <div className="h-[300px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart
+                        data={chartData}
+                        margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+                    >
+                        <defs>
+                            <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8} />
+                                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                            </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                        <XAxis
+                            dataKey="date"
+                            stroke="#64748b"
+                            tick={{ fill: '#64748b', fontSize: 12 }}
+                            tickLine={false}
+                            axisLine={false}
+                            minTickGap={30}
+                        />
+                        <YAxis
+                            stroke="#64748b"
+                            tick={{ fill: '#64748b', fontSize: 12 }}
+                            tickLine={false}
+                            axisLine={false}
+                        />
+                        <Tooltip
+                            contentStyle={{
+                                backgroundColor: '#1e293b',
+                                border: '1px solid #334155',
+                                borderRadius: '8px',
+                                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                            }}
+                            itemStyle={{ color: '#e2e8f0' }}
+                            labelStyle={{ color: '#94a3b8', marginBottom: '0.5rem' }}
+                        />
+                        <Area
+                            type="monotone"
+                            dataKey="count"
+                            stroke="#3b82f6"
+                            strokeWidth={3}
+                            fillOpacity={1}
+                            fill="url(#colorCount)"
+                            animationDuration={1500}
+                        />
+                    </AreaChart>
+                </ResponsiveContainer>
+            </div>
         </div>
     );
 };

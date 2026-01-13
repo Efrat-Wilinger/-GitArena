@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { authApi, User } from '../api/auth';
-import apiClient from '../api/client';
+import apiClient, { analytics } from '../api/client';
 import TeamCollaborationNetwork from '../components/TeamCollaborationNetwork';
 import { LanguageDistribution, RecentCommits, PullRequestStatus } from '../components/DashboardWidgets';
 import { PeakHours, FilesChanged } from '../components/NewDashboardWidgets';
@@ -11,6 +11,9 @@ import { githubApi, TeamCollaborationResponse } from '../api/github';
 import AIInsights from '../components/AIInsights';
 import TeamAIAnalytics from '../components/TeamAIAnalytics';
 import AnimatedCommitGraph from '../components/AnimatedCommitGraph';
+import { DoraMetrics } from '../components/DoraMetrics';
+import { BurnoutMonitor } from '../components/BurnoutMonitor';
+import { QuestsWidget } from '../components/QuestsWidget';
 import ContributionHeatmap from '../components/ContributionHeatmap';
 import { AchievementsSection } from '../components/AchievementBadge';
 import { useProject } from '../contexts/ProjectContext';
@@ -24,7 +27,22 @@ const ProfilePage: React.FC = () => {
         queryFn: authApi.getCurrentUser,
     });
 
+    // Store global role when user is fetched
+    React.useEffect(() => {
+        if (user) {
+            console.log('🔍 User data from API:', user);
+            console.log('🔍 User role:', user.role);
+            if (user.role) {
+                localStorage.setItem('currentUserGlobalRole', user.role);
+                console.log('✅ Stored role in localStorage:', user.role);
+            } else {
+                console.log('❌ No role in user object!');
+            }
+        }
+    }, [user]);
+
     const userRole = useUserRole();
+    console.log('🎭 Current userRole from useUserRole():', userRole);
 
     const { data: managerStats } = useQuery({
         queryKey: ['managerStats', user?.id, currentProjectId],
@@ -63,7 +81,7 @@ const ProfilePage: React.FC = () => {
         enabled: userRole === 'manager',
     });
 
-    const { data: analytics } = useQuery({
+    const { data: managerAnalytics } = useQuery({
         queryKey: ['managerDeepDive', '30days', currentProjectId],
         queryFn: async () => {
             console.log('🔵 Fetching manager analytics for project:', currentProjectId);
@@ -72,6 +90,18 @@ const ProfilePage: React.FC = () => {
             console.log('📊 Commit trend data:', result?.commitTrend);
             return result;
         },
+        enabled: userRole === 'manager'
+    });
+
+    const { data: doraMetrics } = useQuery({
+        queryKey: ['doraMetrics', currentProjectId],
+        queryFn: () => analytics.getDoraMetrics(currentProjectId),
+        enabled: userRole === 'manager'
+    });
+
+    const { data: burnoutMetrics, isLoading: burnoutLoading } = useQuery({
+        queryKey: ['burnoutMetrics', currentProjectId],
+        queryFn: () => analytics.getBurnoutMetrics(currentProjectId),
         enabled: userRole === 'manager'
     });
 
@@ -241,10 +271,42 @@ const ProfilePage: React.FC = () => {
 
 
 
-            {/* AI Insights */}
-            <ErrorBoundary name="AI Insights">
-                <AIInsights userId={user?.id} />
-            </ErrorBoundary>
+            {/* Data & Analytics Section */}
+            <div className="space-y-8">
+                <DoraMetrics
+                    deploymentFrequency={doraMetrics?.data?.deploymentFrequency}
+                    deploymentsHistory={doraMetrics?.data?.deploymentsHistory}
+                    leadTime={doraMetrics?.data?.leadTime}
+                    leadTimeHistory={doraMetrics?.data?.leadTimeHistory}
+                    failureRate={doraMetrics?.data?.failureRate}
+                    mttr={doraMetrics?.data?.mttr}
+                />
+
+                {/* Burnout Monitor & Quests */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div className="lg:col-span-1">
+                        <BurnoutMonitor data={burnoutMetrics?.data} loading={burnoutLoading} />
+                    </div>
+                    <div className="lg:col-span-1">
+                        <QuestsWidget
+                            stats={{
+                                commits: teamStats?.total_commits || 0,
+                                prs: teamStats?.total_prs || 0,
+                                issues: 0,
+                                reviews: teamStats?.total_reviews || 0
+                            }}
+                            isManager={userRole === 'manager'}
+                            projectId={currentProjectId}
+                        />
+                    </div>
+                    <div className="lg:col-span-1">
+                        {/* AI Insights placeholder for layout */}
+                        <ErrorBoundary name="AI Insights">
+                            <AIInsights userId={user?.id} />
+                        </ErrorBoundary>
+                    </div>
+                </div>
+            </div>
 
             {/* Team Collaboration */}
             <ErrorBoundary name="Team Collaboration">
@@ -295,7 +357,7 @@ const ProfilePage: React.FC = () => {
 
             {/* Animated Commit Graph */}
             <ErrorBoundary name="Commit Graph">
-                <AnimatedCommitGraph data={analytics?.commitTrend || []} />
+                <AnimatedCommitGraph data={managerAnalytics?.commitTrend || []} />
             </ErrorBoundary>
 
             {/* Stats Grid */}

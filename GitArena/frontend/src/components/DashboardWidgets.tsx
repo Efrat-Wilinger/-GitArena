@@ -1,8 +1,17 @@
 import React from 'react';
 import { LanguageStats, CommitStats, PRStats } from '../api/auth';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from 'recharts';
 
 export const LanguageDistribution: React.FC<{ data?: LanguageStats[] }> = ({ data }) => {
     const languages = data || [];
+
+    // Colors mapping ensuring they match the data color prop or fallback
+    const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+
+    const chartData = languages.map(lang => ({
+        name: lang.name,
+        value: lang.percentage
+    }));
 
     return (
         <div className="modern-card p-6">
@@ -11,24 +20,39 @@ export const LanguageDistribution: React.FC<{ data?: LanguageStats[] }> = ({ dat
                 Languages
             </h3>
 
-            <div className="space-y-4">
-                {languages.length > 0 ? languages.map((lang, index) => (
-                    <div key={index} className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                            <span className="text-white font-medium">{lang.name}</span>
-                            <span className="text-slate-400">{lang.percentage}%</span>
-                        </div>
-                        <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
-                            <div
-                                className={`h-full ${lang.color} transition-all duration-1000 ease-out rounded-full`}
-                                style={{ width: `${lang.percentage}%` }}
+            {languages.length > 0 ? (
+                <div className="h-[250px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                            <Pie
+                                data={chartData}
+                                cx="50%"
+                                cy="50%"
+                                innerRadius={60}
+                                outerRadius={80}
+                                paddingAngle={5}
+                                dataKey="value"
+                            >
+                                {chartData.map((_, index) => (
+                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                ))}
+                            </Pie>
+                            <RechartsTooltip
+                                contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px' }}
+                                itemStyle={{ color: '#fff' }}
                             />
-                        </div>
-                    </div>
-                )) : (
-                    <p className="text-slate-500 text-sm">No language data available</p>
-                )}
-            </div>
+                            <Legend
+                                layout="vertical"
+                                verticalAlign="middle"
+                                align="right"
+                                iconType="circle"
+                            />
+                        </PieChart>
+                    </ResponsiveContainer>
+                </div>
+            ) : (
+                <p className="text-slate-500 text-sm text-center py-10">No language data available</p>
+            )}
         </div>
     );
 };
@@ -45,26 +69,26 @@ export const RecentCommits: React.FC<{ data?: CommitStats[] }> = ({ data }) => {
 
             <div className="space-y-4">
                 {commits.length > 0 ? commits.map((commit, index) => (
-                    <div key={index} className="group p-3 rounded-lg hover:bg-white/5 transition-colors cursor-pointer">
+                    <div key={index} className="group p-3 rounded-lg hover:bg-white/5 transition-colors cursor-pointer border border-transparent hover:border-slate-700">
                         <div className="flex items-start justify-between gap-4">
                             <div className="flex-1 min-w-0">
                                 <p className="text-white font-medium text-sm truncate mb-1">
                                     {commit.message}
                                 </p>
                                 <div className="flex items-center gap-2 text-xs text-slate-500">
-                                    <span className="font-mono">{commit.repo}</span>
+                                    <span className="font-mono bg-slate-800 px-1.5 py-0.5 rounded text-slate-300">{commit.repo}</span>
                                     <span>•</span>
                                     <span>{commit.time}</span>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2 text-xs flex-shrink-0">
-                                <span className="text-green-400">+{commit.additions}</span>
-                                <span className="text-red-400">-{commit.deletions}</span>
+                            <div className="flex items-center gap-2 text-xs flex-shrink-0 font-mono">
+                                <span className="text-green-400 bg-green-400/10 px-1.5 py-0.5 rounded">+{commit.additions}</span>
+                                <span className="text-red-400 bg-red-400/10 px-1.5 py-0.5 rounded">-{commit.deletions}</span>
                             </div>
                         </div>
                     </div>
                 )) : (
-                    <p className="text-slate-500 text-sm">No recent commits</p>
+                    <p className="text-slate-500 text-sm text-center py-4">No recent commits</p>
                 )}
             </div>
         </div>
@@ -81,13 +105,13 @@ export const PullRequestStatus: React.FC<{ data?: PRStats[] }> = ({ data }) => {
                 Pull Requests
             </h3>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                 {stats.length > 0 && stats.map((stat, index) => (
-                    <div key={index} className={`${stat.bgColor} rounded-lg p-4 text-center`}>
-                        <div className={`text-3xl font-bold ${stat.color} mb-1`}>
+                    <div key={index} className={`${stat.bgColor} rounded-xl p-5 text-center transition-transform hover:scale-105 duration-300`}>
+                        <div className={`text-4xl font-bold ${stat.color} mb-2`}>
                             {stat.count}
                         </div>
-                        <div className="text-xs text-slate-400 uppercase tracking-wide">
+                        <div className="text-xs text-slate-400 uppercase tracking-wide font-semibold">
                             {stat.label}
                         </div>
                     </div>

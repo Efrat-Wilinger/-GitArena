@@ -270,3 +270,18 @@ class Activity(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     
     repository = relationship("Repository")
+
+
+class Quest(Base):
+    __tablename__ = "quests"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, index=True)
+    description = Column(Text, nullable=True)
+    target = Column(Integer)
+    metric = Column(String)  # commits, prs, issues, reviews
+    reward = Column(String, nullable=True)
+    project_id = Column(Integer, ForeignKey("spaces.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    project = relationship("Space")

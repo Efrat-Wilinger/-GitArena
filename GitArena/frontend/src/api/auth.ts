@@ -7,6 +7,7 @@ export interface User {
     name?: string;
     avatar_url?: string;
     github_id: string;
+    role?: string; // 'manager', 'member', 'admin'
     created_at: string;
     bio?: string;
     location?: string;
