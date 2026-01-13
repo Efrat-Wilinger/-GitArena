@@ -771,3 +771,470 @@ class AnalyticsService:
             import traceback
             traceback.print_exc()
             return {}
+
+    def get_leaderboard(self, user_id: int, project_id: int = None, period: str = "all-time") -> dict:
+        """
+        Get team leaderboard rankings based on contributions
+        """
+        try:
+            if project_id:
+                space_ids = [project_id]
+            else:
+                space_ids = self._get_user_team_space_ids(user_id)
+            
+            if not space_ids:
+                return {"entries": [], "period": period}
+            
+            # Get all repositories in these spaces
+            repos = self.db.query(Repository).filter(Repository.space_id.in_(space_ids)).all()
+            repo_ids = [r.id for r in repos]
+            
+            if not repo_ids:
+                return {"entries": [], "period": period}
+            
+            # Get all team members
+            from app.shared.models import SpaceMember, PullRequest
+            members = self.db.query(User).join(SpaceMember).filter(
+                SpaceMember.space_id.in_(space_ids)
+            ).distinct().all()
+            
+            leaderboard_data = []
+            
+            for member in members:
+                # Count contributions
+                commits_count = self.db.query(func.count(Commit.id)).join(Repository).filter(
+                    Repository.id.in_(repo_ids),
+                    (Commit.author_email == member.email) | (Commit.author_name == member.username)
+                ).scalar() or 0
+                
+                prs_count = self.db.query(func.count(PullRequest.id)).filter(
+                    PullRequest.repository_id.in_(repo_ids),
+                    PullRequest.author == member.username
+                ).scalar() or 0
+                
+                # Reviews count - approximate as merged PRs (rough estimate)
+                reviews_count = self.db.query(func.count(PullRequest.id)).filter(
+                    PullRequest.repository_id.in_(repo_ids),
+                    PullRequest.state.in_(['merged'])
+                ).scalar() or 0
+                reviews_count = int(reviews_count * 0.2)  # Rough approximation
+                
+                # Calculate total score (weighted)
+                total_score = (commits_count * 1) + (prs_count * 3) + (reviews_count * 2)
+                
+                leaderboard_data.append({
+                    "name": member.name or member.username,
+                    "avatar_url": member.avatar_url,
+                    "commits": commits_count,
+                    "prs": prs_count,
+                    "reviews": reviews_count,
+                    "total_score": total_score
+                })
+            
+            # Sort by total score
+            leaderboard_data.sort(key=lambda x: x["total_score"], reverse=True)
+            
+            # Add ranks and limit to top 10
+            entries = []
+            for i, entry in enumerate(leaderboard_data[:10], 1):
+                entries.append({
+                    "rank": i,
+                    **entry
+                })
+            
+            return {
+                "entries": entries,
+                "period": period
+            }
+            
+        except Exception as e:
+            print(f"ERROR: get_leaderboard failed: {e}")
+            import traceback
+            traceback.print_exc()
+            return {"entries": [], "period": period}
+
+    def get_bottlenecks(self, user_id: int, project_id: int = None) -> dict:
+        """
+        Detect development bottlenecks:
+        - Stuck PRs (no activity for days)
+        - PRs waiting for review too long
+        - High churn PRs (many comments/reviews but not merged)
+        """
+        try:
+            if project_id:
+                space_ids = [project_id]
+            else:
+                space_ids = self._get_user_team_space_ids(user_id)
+            
+            if not space_ids:
+                return {"alerts": [], "total_high_severity": 0, "total_medium_severity": 0}
+
+            # Get all repositories
+            from app.shared.models import Repository, PullRequest, Review
+            repos = self.db.query(Repository).filter(Repository.space_id.in_(space_ids)).all()
+            repo_ids = [r.id for r in repos]
+            
+            if not repo_ids:
+                return {"alerts": [], "total_high_severity": 0, "total_medium_severity": 0}
+
+            # Fetch relevant OPEN PRs
+            open_prs = self.db.query(PullRequest).filter(
+                PullRequest.repository_id.in_(repo_ids),
+                PullRequest.state == 'open'
+            ).all()
+
+            alerts = []
+            from datetime import datetime, timedelta
+            now = datetime.utcnow()
+            
+            for pr in open_prs:
+                # 1. Stale PR (Created > 7 days ago and no updates/reviews)
+                days_open = (now - pr.created_at).days
+                days_since_update = (now - (pr.updated_at or pr.created_at)).days
+                
+                # Count reviews
+                review_count = self.db.query(func.count(Review.id)).filter(
+                    Review.pull_request_id == pr.id
+                ).scalar() or 0
+                
+                # Check 1: Old and ignored (High Severity)
+                if days_open > 7 and review_count == 0:
+                    alerts.append({
+                        "id": f"stale-{pr.id}",
+                        "type": "stuck_pr",
+                        "severity": "high",
+                        "title": f"Stale PR: {pr.title}",
+                        "description": f"Open for {days_open} days with no reviews.",
+                        "repository": pr.repository.name,
+                        "url": f"https://github.com/{pr.repository.owner}/{pr.repository.name}/pull/{pr.number}", # Construct URL strictly
+                        "created_at": pr.created_at
+                    })
+                    continue # Skip other checks if high severity found
+
+                # Check 2: Sitting idle (Medium Severity)
+                if days_since_update > 3:
+                     alerts.append({
+                        "id": f"idle-{pr.id}",
+                        "type": "inactive_pr",
+                        "severity": "medium",
+                        "title": f"Inactive PR: {pr.title}",
+                        "description": f"No activity for {days_since_update} days.",
+                        "repository": pr.repository.name,
+                         "url": f"https://github.com/{pr.repository.owner}/{pr.repository.name}/pull/{pr.number}",
+                        "created_at": pr.created_at # Alert timestamp is now or pr creation? Let's use pr creation for context
+                    })
+                
+                # Check 3: High Contention / Long Review (Medium Severity)
+                if review_count > 5:
+                     alerts.append({
+                        "id": f"churn-{pr.id}",
+                        "type": "high_churn",
+                        "severity": "medium",
+                        "title": f"High Churn: {pr.title}",
+                        "description": f"Has {review_count} reviews but is still open.",
+                        "repository": pr.repository.name,
+                        "url": f"https://github.com/{pr.repository.owner}/{pr.repository.name}/pull/{pr.number}",
+                        "created_at": pr.created_at
+                    })
+
+            # Sort alerts by severity (High first) and then by date
+            severity_order = {"high": 0, "medium": 1, "low": 2}
+            alerts.sort(key=lambda x: (severity_order.get(x["severity"], 2), x["created_at"]))
+
+            counts = {
+                "high": sum(1 for a in alerts if a["severity"] == "high"),
+                "medium": sum(1 for a in alerts if a["severity"] == "medium")
+            }
+
+            return {
+                "alerts": alerts,
+                "total_high_severity": counts["high"],
+                "total_medium_severity": counts["medium"]
+            }
+
+        except Exception as e:
+            print(f"ERROR: get_bottlenecks failed: {e}")
+            import traceback
+            traceback.print_exc()
+            return {"alerts": [], "total_high_severity": 0, "total_medium_severity": 0}
+
+    def get_knowledge_base_metrics(self, user_id: int, project_id: int = None) -> dict:
+        """
+        Calculate documentation health metrics:
+        - README existence/freshness
+        - CONTRIBUTING.md existence
+        - Frequency of documentation updates
+        """
+        try:
+            if project_id:
+                space_ids = [project_id]
+            else:
+                space_ids = self._get_user_team_space_ids(user_id)
+            
+            if not space_ids:
+                return {
+                    "health_score": 0,
+                    "last_update": None,
+                    "readme_exists": False,
+                    "contributing_exists": False,
+                    "documentation_ratio": 0.0,
+                    "recent_updates_count": 0
+                }
+
+            # Get all repositories
+            from app.shared.models import Repository
+            repos = self.db.query(Repository).filter(Repository.space_id.in_(space_ids)).all()
+            repo_ids = [r.id for r in repos]
+            
+            if not repo_ids:
+                 return {
+                    "health_score": 0,
+                    "last_update": None,
+                    "readme_exists": False,
+                    "contributing_exists": False,
+                    "documentation_ratio": 0.0,
+                    "recent_updates_count": 0
+                }
+
+            # Fetch commits
+            # Optimize: Limit to last 1000 commits or last 3 months to avoid scanning everything
+            from datetime import datetime, timedelta
+            three_months_ago = datetime.utcnow() - timedelta(days=90)
+            
+            commits = self.db.query(Commit).filter(
+                Commit.repository_id.in_(repo_ids),
+                Commit.committed_date >= three_months_ago
+            ).order_by(Commit.committed_date.desc()).all()
+            
+            if not commits:
+                 return {
+                    "health_score": 0,
+                    "last_update": None,
+                    "readme_exists": False,
+                    "contributing_exists": False,
+                    "documentation_ratio": 0.0,
+                    "recent_updates_count": 0
+                }
+
+            doc_commits_count = 0
+            readme_found = False
+            contributing_found = False
+            last_doc_update = None
+            
+            recent_threshold = datetime.utcnow() - timedelta(days=30)
+            recent_updates = 0
+
+            for commit in commits:
+                is_doc_commit = False
+                
+                # Check diff_data if available
+                # Note: diff_data structure depends on how it was saved. Assuming list of files or similar.
+                # If diff_data is None, we can't know for sure, so skip or inspect message
+                
+                files = []
+                if commit.diff_data and isinstance(commit.diff_data, dict):
+                     # Accessing 'files' key if it exists, or iterating keys if it's a map
+                     files = commit.diff_data.get('files', [])
+                elif commit.diff_data and isinstance(commit.diff_data, list):
+                    files = commit.diff_data
+                
+                # Fallback: check commit message for hints if diff_data missing (not accurate but helpful)
+                if not files and ("docs" in (commit.message or "").lower() or "readme" in (commit.message or "").lower()):
+                     is_doc_commit = True
+                
+                for file_entry in files:
+                    # file_entry might be a string (filename) or dict
+                    filename = ""
+                    if isinstance(file_entry, str):
+                        filename = file_entry
+                    elif isinstance(file_entry, dict):
+                        filename = file_entry.get('filename', '') or file_entry.get('name', '')
+                    
+                    filename_lower = filename.lower()
+                    
+                    if filename_lower.endswith('.md') or 'docs/' in filename_lower:
+                        is_doc_commit = True
+                        
+                        if 'readme.md' in filename_lower:
+                            readme_found = True
+                        if 'contributing.md' in filename_lower:
+                            contributing_found = True
+                
+                if is_doc_commit:
+                    doc_commits_count += 1
+                    if not last_doc_update:
+                        last_doc_update = commit.committed_date
+                    
+                    if commit.committed_date >= recent_threshold:
+                        recent_updates += 1
+
+            # Calculate Score
+            score = 0
+            if readme_found: score += 30
+            if contributing_found: score += 20
+            
+            # Frenquency score (up to 30)
+            if recent_updates > 5: score += 30
+            elif recent_updates > 0: score += 15
+            
+            # Ratio bonus (up to 20)
+            ratio = (doc_commits_count / len(commits)) if commits else 0
+            if ratio > 0.1: score += 20
+            elif ratio > 0.05: score += 10
+            
+            return {
+                "health_score": min(100, score),
+                "last_update": last_doc_update,
+                "readme_exists": readme_found,
+                "contributing_exists": contributing_found,
+                "documentation_ratio": round(ratio, 2),
+                "recent_updates_count": recent_updates
+            }
+
+        except Exception as e:
+            print(f"ERROR: get_knowledge_base_metrics failed: {e}")
+            import traceback
+            traceback.print_exc()
+            return {
+                "health_score": 0,
+                "readme_exists": False,
+                "contributing_exists": False,
+                "documentation_ratio": 0.0,
+                "recent_updates_count": 0
+            }
+
+    def get_team_capacity(self, user_id: int, project_id: int = None) -> dict:
+        """
+        Calculate team capacity planning metrics.
+        Estimates velocity based on recent activity (30 days).
+        Predicts output for next Sprint (14 days).
+        """
+        try:
+            if project_id:
+                space_ids = [project_id]
+            else:
+                space_ids = self._get_user_team_space_ids(user_id)
+            
+            if not space_ids:
+                return {
+                    "total_capacity_score": 0,
+                    "active_members_count": 0,
+                    "average_velocity": 0.0,
+                    "predicted_sprint_output": 0,
+                    "sprint_risk": "Low",
+                    "member_loads": []
+                }
+
+            # Get team members
+            from app.shared.models import SpaceMember, User, Commit, Repository
+            
+            # Fetch members in these spaces
+            members = self.db.query(User).join(SpaceMember).filter(SpaceMember.space_id.in_(space_ids)).distinct().all()
+            
+            if not members:
+                 return {
+                    "total_capacity_score": 0,
+                    "active_members_count": 0,
+                    "average_velocity": 0.0,
+                    "predicted_sprint_output": 0,
+                    "sprint_risk": "Low",
+                    "member_loads": []
+                }
+            
+            # Repositories for these spaces
+            repos = self.db.query(Repository).filter(Repository.space_id.in_(space_ids)).all()
+            repo_ids = [r.id for r in repos]
+
+            # Calculate velocity for each member (commits in last 30 days)
+            from datetime import datetime, timedelta
+            thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+            
+            member_loads = []
+            total_velocity = 0.0
+            
+            for member in members:
+                # Count commits by this author in relevant repos
+                # Note: Matching by author_name/email is tricky without strict linking.
+                # Assuming simple match or if we have user_id on commit (ideal)
+                # Fallback: match by username in author_name (fuzzy)
+                
+                # Best effort: count commits where author_name matches distinct names used by this user
+                # faster: just count all commits in these repos and filter in python if needed, 
+                # or assume Author Name ~= User Name.
+                # In this system, lets assume filtering by email if available, or name.
+                
+                commit_count = self.db.query(Commit).filter(
+                    Commit.repository_id.in_(repo_ids),
+                    Commit.committed_date >= thirty_days_ago,
+                    Commit.author_name == member.username # Simplification for prototype
+                ).count()
+                
+                daily_velocity = commit_count / 30.0
+                total_velocity += daily_velocity
+                
+                member_loads.append({
+                    "user_id": member.id,
+                    "username": member.username,
+                    "avatar_url": member.avatar_url,
+                    "velocity": round(daily_velocity, 2),
+                    "raw_velocity": daily_velocity
+                })
+            
+            avg_velocity = total_velocity / len(members) if members else 0
+            
+            # Determine status
+            final_member_loads = []
+            for m in member_loads:
+                status = "Optimal"
+                if m["raw_velocity"] > (avg_velocity * 1.5) and m["raw_velocity"] > 0.5:
+                    status = "Overloaded"
+                elif m["raw_velocity"] < (avg_velocity * 0.5):
+                    status = "Underutilized"
+                
+                final_member_loads.append({
+                    "user_id": m["user_id"],
+                    "username": m["username"],
+                    "avatar_url": m["avatar_url"],
+                    "velocity": m["velocity"],
+                    "status": status
+                })
+            
+            # Sort by velocity desc
+            final_member_loads.sort(key=lambda x: x["velocity"], reverse=True)
+            
+            predicted_sprint_output = int(total_velocity * 14) # 2 weeks
+            
+            # Risk assessment
+            # High risk if high variance or very low total velocity
+            sprint_risk = "Low"
+            if len(members) < 2:
+                sprint_risk = "High"
+            elif avg_velocity < 0.1: # Very low activity
+                sprint_risk = "High"
+            
+            # Capacity score (0-100) based on optimal load distribution
+            # Simple heuristic: heavily penalized by underutilized members
+            optimal_count = sum(1 for m in final_member_loads if m["status"] == "Optimal")
+            capacity_score = int((optimal_count / len(members)) * 100) if members else 0
+
+            return {
+                "total_capacity_score": capacity_score,
+                "active_members_count": len(members),
+                "average_velocity": round(avg_velocity, 2),
+                "predicted_sprint_output": predicted_sprint_output,
+                "sprint_risk": sprint_risk,
+                "member_loads": final_member_loads
+            }
+
+        except Exception as e:
+            print(f"ERROR: get_team_capacity failed: {e}")
+            import traceback
+            traceback.print_exc()
+            return {
+                "total_capacity_score": 0,
+                "active_members_count": 0,
+                "average_velocity": 0.0,
+                "predicted_sprint_output": 0,
+                "sprint_risk": "Low",
+                "member_loads": []
+            }

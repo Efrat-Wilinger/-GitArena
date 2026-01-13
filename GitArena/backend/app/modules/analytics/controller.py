@@ -147,3 +147,49 @@ async def delete_quest(
     db.delete(db_quest)
     db.commit()
     return {"status": "success"}
+
+
+# Leaderboard Endpoint
+@router.get("/leaderboard")
+async def get_leaderboard(
+    project_id: Optional[int] = None,
+    period: str = "all-time",
+    current_user: UserResponse = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get team leaderboard rankings"""
+    service = AnalyticsService(db)
+    return service.get_leaderboard(current_user.id, project_id, period)
+
+
+@router.get("/bottlenecks")
+async def get_bottlenecks(
+    project_id: Optional[int] = None,
+    current_user: UserResponse = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get development bottlenecks and alerts"""
+    service = AnalyticsService(db)
+    return service.get_bottlenecks(current_user.id, project_id)
+
+
+@router.get("/knowledge-base")
+async def get_knowledge_base_metrics(
+    project_id: Optional[int] = None,
+    current_user: UserResponse = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get documentation health analysis"""
+    service = AnalyticsService(db)
+    return service.get_knowledge_base_metrics(current_user.id, project_id)
+
+
+@router.get("/capacity")
+async def get_team_capacity(
+    project_id: Optional[int] = None,
+    current_user: UserResponse = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get team capacity planning metrics"""
+    service = AnalyticsService(db)
+    return service.get_team_capacity(current_user.id, project_id)

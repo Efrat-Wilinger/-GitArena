@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { githubApi } from '../../api/github';
 import { useProject } from '../../contexts/ProjectContext';
+import LeaderboardWidget from '../../components/LeaderboardWidget';
 
 interface TeamMember {
     id: string;
@@ -155,6 +156,11 @@ const TeamManagementPage: React.FC = () => {
                         <div className="text-sm text-slate-400">{stat.label}</div>
                     </div>
                 ))}
+            </div>
+
+            {/* Leaderboard Section */}
+            <div className="mb-2">
+                <LeaderboardWidget projectId={currentProjectId || undefined} />
             </div>
 
             {/* Members List */}

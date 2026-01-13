@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { ErrorBoundary } from '../components/ErrorBoundary';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import { authApi, User } from '../api/auth';
 import apiClient, { analytics } from '../api/client';
 import TeamCollaborationNetwork from '../components/TeamCollaborationNetwork';
@@ -12,11 +13,15 @@ import AIInsights from '../components/AIInsights';
 import TeamAIAnalytics from '../components/TeamAIAnalytics';
 import AnimatedCommitGraph from '../components/AnimatedCommitGraph';
 import { DoraMetrics } from '../components/DoraMetrics';
+import BottleneckAlerts from '../components/BottleneckAlerts';
+import KnowledgeBaseWidget from '../components/KnowledgeBaseWidget';
+import CapacityPlanningWidget from '../components/CapacityPlanningWidget';
 import { BurnoutMonitor } from '../components/BurnoutMonitor';
 import { QuestsWidget } from '../components/QuestsWidget';
 import ContributionHeatmap from '../components/ContributionHeatmap';
 import { AchievementsSection } from '../components/AchievementBadge';
 import { useProject } from '../contexts/ProjectContext';
+import LeaderboardWidget from '../components/LeaderboardWidget';
 
 const ProfilePage: React.FC = () => {
     const { currentProjectId: contextProjectId } = useProject();
@@ -210,164 +215,138 @@ const ProfilePage: React.FC = () => {
 
     // Manager Dashboard
     const ManagerDashboard = (
-        <div className="max-w-7xl mx-auto space-y-8 pb-12">
-            {/* Role Badge */}
-            <div className="flex items-center gap-3">
-                <div className="px-4 py-2 rounded-xl bg-gradient-orange text-white font-semibold text-sm flex items-center gap-2">
-                    <span>👑</span>
-                    Manager View
-                </div>
-            </div>
-
-            {/* Header with Team Stats */}
-            <div className="modern-card p-8">
-                <div className="flex flex-col md:flex-row gap-8 items-start mb-6">
-                    <div className="flex-1">
-                        <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-white mb-2">
-                            Team Dashboard
+        <div className="max-w-7xl mx-auto space-y-6 pb-12">
+            {/* Header Section */}
+            <div className="flex flex-col md:flex-row gap-6 items-start justify-between">
+                <div>
+                    <div className="flex items-center gap-3 mb-2">
+                        <h1 className="text-3xl font-bold tracking-tight text-white">
+                            Command Center
                         </h1>
-                        <p className="text-slate-400">
-                            Manage your team's performance and insights
-                        </p>
+                        <div className="px-3 py-1 rounded-full bg-gradient-orange text-white text-xs font-bold flex items-center gap-1">
+                            <span>👑</span> Manager
+                        </div>
                     </div>
-
-                    {/* Sync Button */}
-                    <button
-                        onClick={() => syncMutation.mutate()}
-                        disabled={isSyncing}
-                        className="btn-primary flex items-center gap-2"
-                    >
-                        {isSyncing ? (
-                            <>
-                                <div className="animate-spin w-5 h-5 border-2 border-white/30 border-t-white rounded-full"></div>
-                                Syncing...
-                            </>
-                        ) : (
-                            <>
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                </svg>
-                                Sync All Stats
-                            </>
-                        )}
-                    </button>
+                    <p className="text-slate-400 max-w-xl">
+                        Overview of team performance, health, and development velocity.
+                    </p>
                 </div>
 
-                {/* Quick Team Stats */}
-                <div className="grid grid-cols-4 gap-4">
-                    {[
-                        { label: 'Total Commits', value: teamStats?.total_commits || 0, color: 'blue' },
-                        { label: 'Team PRs', value: teamStats?.total_prs || 0, color: 'blue' },
-                        { label: 'Active Repos', value: teamStats?.active_repos || 0, color: 'blue' },
-                        { label: 'Team Size', value: collaborationData?.members?.length || 1, color: 'blue' },
-                    ].map((stat, i) => (
-                        <div key={i} className="text-center">
-                            <div className="text-3xl font-bold text-blue-400">{stat.value}</div>
-                            <div className="text-xs text-slate-500 mt-1">{stat.label}</div>
+                <button
+                    onClick={() => syncMutation.mutate()}
+                    disabled={isSyncing}
+                    className="btn-primary flex items-center gap-2 shadow-lg shadow-blue-500/20"
+                >
+                    {isSyncing ? (
+                        <>
+                            <div className="animate-spin w-4 h-4 border-2 border-white/30 border-t-white rounded-full"></div>
+                            <span>Syncing...</span>
+                        </>
+                    ) : (
+                        <>
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            <span>Sync All Data</span>
+                        </>
+                    )}
+                </button>
+            </div>
+
+            {/* Quick Stats Row */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {[
+                    { label: 'Active Repos', value: teamStats?.active_repos, icon: '📂', color: 'blue' },
+                    { label: 'Total Commits', value: teamStats?.total_commits, icon: '💻', color: 'purple' },
+                    { label: 'Pull Requests', value: teamStats?.total_prs, icon: '🔀', color: 'green' },
+                    { label: 'Team Size', value: collaborationData?.members?.length, icon: '👥', color: 'orange' },
+                ].map((stat, i) => (
+                    <div key={i} className="modern-card p-4 flex items-center gap-4 hover:scale-102 transition-transform cursor-default">
+                        <div className={`w-12 h-12 rounded-xl bg-${stat.color}-500/10 flex items-center justify-center text-2xl`}>
+                            {stat.icon}
                         </div>
-                    ))}
+                        <div>
+                            <div className="text-2xl font-bold text-white">{stat.value || 0}</div>
+                            <div className="text-xs text-slate-500 font-medium uppercase tracking-wider">{stat.label}</div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {/* Main Grid Layout (Bento Grid) */}
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+
+                {/* 1. Engineering Health (Dora) - 8 Cols */}
+                <div className="xl:col-span-8">
+                    <DoraMetrics
+                        deploymentFrequency={doraMetrics?.data?.deploymentFrequency}
+                        deploymentsHistory={doraMetrics?.data?.deploymentsHistory}
+                        leadTime={doraMetrics?.data?.leadTime}
+                        leadTimeHistory={doraMetrics?.data?.leadTimeHistory}
+                        failureRate={doraMetrics?.data?.failureRate}
+                        mttr={doraMetrics?.data?.mttr}
+                    />
+                </div>
+
+                {/* 2. Urgent Alerts - 4 Cols */}
+                <div className="xl:col-span-4 flex flex-col gap-6">
+                    <BottleneckAlerts projectId={currentProjectId} />
+                    <BurnoutMonitor data={burnoutMetrics?.data} loading={burnoutLoading} />
+                </div>
+
+                {/* 3. Planning & Capacity - 12 Cols Split */}
+                <div className="xl:col-span-4">
+                    <CapacityPlanningWidget projectId={currentProjectId} />
+                </div>
+                <div className="xl:col-span-4">
+                    <KnowledgeBaseWidget projectId={currentProjectId} />
+                </div>
+                <div className="xl:col-span-4">
+                    <LeaderboardWidget projectId={currentProjectId} />
+                </div>
+
+                {/* 4. Deep Dive & Collaboration - 8 Cols vs 4 Cols */}
+                <div className="xl:col-span-8 space-y-6">
+                    <ErrorBoundary name="Commit Graph">
+                        <AnimatedCommitGraph data={managerAnalytics?.commitTrend || []} />
+                    </ErrorBoundary>
+
+                    <ErrorBoundary name="Team Collaboration">
+                        <div className="min-h-[400px]">
+                            {collaborationData && (
+                                <TeamCollaborationNetwork
+                                    members={collaborationData?.members || []}
+                                    collaborations={collaborationData?.collaborations || []}
+                                />
+                            )}
+                        </div>
+                    </ErrorBoundary>
+                </div>
+
+                <div className="xl:col-span-4 space-y-6">
+                    <QuestsWidget
+                        stats={{
+                            commits: teamStats?.total_commits || 0,
+                            prs: teamStats?.total_prs || 0,
+                            issues: 0,
+                            reviews: teamStats?.total_reviews || 0
+                        }}
+                        isManager={userRole === 'manager'}
+                        projectId={currentProjectId}
+                    />
+                    <ErrorBoundary name="AI Insights">
+                        <AIInsights userId={user?.id} />
+                    </ErrorBoundary>
+                </div>
+
+                {/* 5. Metrics Grid - Full Width */}
+                <div className="xl:col-span-12 grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <PullRequestStatus data={managerStats?.prStats} />
+                    <PeakHours data={managerStats?.peakHours} />
+                    <FilesChanged data={managerStats?.filesChanged} />
                 </div>
             </div>
 
-
-
-            {/* Data & Analytics Section */}
-            <div className="space-y-8">
-                <DoraMetrics
-                    deploymentFrequency={doraMetrics?.data?.deploymentFrequency}
-                    deploymentsHistory={doraMetrics?.data?.deploymentsHistory}
-                    leadTime={doraMetrics?.data?.leadTime}
-                    leadTimeHistory={doraMetrics?.data?.leadTimeHistory}
-                    failureRate={doraMetrics?.data?.failureRate}
-                    mttr={doraMetrics?.data?.mttr}
-                />
-
-                {/* Burnout Monitor & Quests */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <div className="lg:col-span-1">
-                        <BurnoutMonitor data={burnoutMetrics?.data} loading={burnoutLoading} />
-                    </div>
-                    <div className="lg:col-span-1">
-                        <QuestsWidget
-                            stats={{
-                                commits: teamStats?.total_commits || 0,
-                                prs: teamStats?.total_prs || 0,
-                                issues: 0,
-                                reviews: teamStats?.total_reviews || 0
-                            }}
-                            isManager={userRole === 'manager'}
-                            projectId={currentProjectId}
-                        />
-                    </div>
-                    <div className="lg:col-span-1">
-                        {/* AI Insights placeholder for layout */}
-                        <ErrorBoundary name="AI Insights">
-                            <AIInsights userId={user?.id} />
-                        </ErrorBoundary>
-                    </div>
-                </div>
-            </div>
-
-            {/* Team Collaboration */}
-            <ErrorBoundary name="Team Collaboration">
-                {!currentProjectId ? (
-                    <div className="modern-card p-8 text-center min-h-[400px] flex flex-col items-center justify-center">
-                        <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
-                            <span className="w-2 h-8 bg-blue-500 rounded-full"></span>
-                            Team Collaboration
-                        </h3>
-                        <div className="flex-1 flex flex-col items-center justify-center text-slate-500">
-                            <div className="text-4xl mb-4">📊</div>
-                            <p>Please select a project to view team collaboration</p>
-                        </div>
-                    </div>
-                ) : collaborationLoading ? (
-                    <div className="modern-card p-8 text-center min-h-[400px] flex flex-col items-center justify-center">
-                        <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
-                            <span className="w-2 h-8 bg-blue-500 rounded-full"></span>
-                            Team Collaboration
-                        </h3>
-                        <div className="flex-1 flex flex-col items-center justify-center">
-                            <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mb-4"></div>
-                            <p className="text-slate-400">Loading collaboration data...</p>
-                        </div>
-                    </div>
-                ) : collaborationError ? (
-                    <div className="modern-card p-8 text-center min-h-[400px] flex flex-col items-center justify-center">
-                        <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
-                            <span className="w-2 h-8 bg-blue-500 rounded-full"></span>
-                            Team Collaboration
-                        </h3>
-                        <div className="flex-1 flex flex-col items-center justify-center text-slate-500">
-                            <div className="text-4xl mb-4">⚠️</div>
-                            <p>Failed to load team collaboration data</p>
-                            <p className="text-xs mt-2 text-slate-600">Try refreshing the page</p>
-                        </div>
-                    </div>
-                ) : (
-                    <>
-                        <TeamAIAnalytics />
-                        <TeamCollaborationNetwork
-                            members={collaborationData?.members || []}
-                            collaborations={collaborationData?.collaborations || []}
-                        />
-                    </>
-                )}
-            </ErrorBoundary>
-
-            {/* Animated Commit Graph */}
-            <ErrorBoundary name="Commit Graph">
-                <AnimatedCommitGraph data={managerAnalytics?.commitTrend || []} />
-            </ErrorBoundary>
-
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <PullRequestStatus data={managerStats?.prStats} />
-                <PeakHours data={managerStats?.peakHours} />
-                <FilesChanged data={managerStats?.filesChanged} />
-            </div>
-
-            {/* Recent Activity */}
             <RecentCommits data={managerStats?.recentCommits} />
         </div>
     );
