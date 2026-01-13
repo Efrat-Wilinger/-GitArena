@@ -26,6 +26,18 @@ apiClient.interceptors.request.use(
     }
 );
 
+export const analytics = {
+    getManagerDeepDive: (timeRange: string = '30days', projectId?: number) => {
+        return apiClient.get(`/analytics/manager/analytics-report`, { params: { timeRange, project_id: projectId } });
+    },
+    getDoraMetrics: (projectId?: number) => {
+        return apiClient.get(`/analytics/dora`, { params: { project_id: projectId } });
+    },
+    getBurnoutMetrics: (projectId?: number) => {
+        return apiClient.get(`/analytics/burnout`, { params: { project_id: projectId } });
+    }
+};
+
 // Response interceptor for error handling
 apiClient.interceptors.response.use(
     (response) => response,
