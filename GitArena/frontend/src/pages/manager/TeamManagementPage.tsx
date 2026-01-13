@@ -88,6 +88,14 @@ const TeamManagementPage: React.FC = () => {
     }
 
 
+    // Calculate members added this month
+    const now = new Date();
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const membersThisMonth = members.filter(m => {
+        const joinedDate = new Date(m.joined_at);
+        return joinedDate >= firstDayOfMonth;
+    }).length;
+
     const filteredMembers = members.filter(m =>
         m.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         m.username?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -137,7 +145,7 @@ const TeamManagementPage: React.FC = () => {
                     { label: 'Total Members', value: members.length, icon: '👥', color: 'blue' },
                     { label: 'Active', value: members.filter(m => m.status === 'active').length, icon: '✅', color: 'green' },
                     { label: 'Managers', value: members.filter(m => m.role === 'manager').length, icon: '👑', color: 'orange' },
-                    { label: 'This Month', value: 3, icon: '📅', color: 'blue' },
+                    { label: 'This Month', value: membersThisMonth, icon: '📅', color: 'blue' },
                 ].map((stat, i) => (
                     <div key={i} className="modern-card p-6">
                         <div className="flex items-center justify-between mb-2">
@@ -197,14 +205,10 @@ const TeamManagementPage: React.FC = () => {
 
                             {/* Actions */}
                             <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button className="p-2 hover:bg-blue-500/10 rounded-lg transition-colors text-blue-400">
-                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                    </svg>
-                                </button>
                                 <button
                                     onClick={() => handleRemoveMember(member.id)}
                                     className="p-2 hover:bg-red-500/10 rounded-lg transition-colors text-red-400"
+                                    title="Remove member"
                                 >
                                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />

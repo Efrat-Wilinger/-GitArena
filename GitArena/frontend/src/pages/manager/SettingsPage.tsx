@@ -123,21 +123,26 @@ const SettingsPage: React.FC = () => {
                                 <h3 className="text-xl font-bold text-white mb-4">Connected Services</h3>
                                 <div className="space-y-4">
                                     {[
-                                        { name: 'GitHub', icon: '🐙', connected: true },
-                                        { name: 'Slack', icon: '💬', connected: false },
-                                        { name: 'Jira', icon: '📊', connected: false },
-                                        { name: 'Discord', icon: '🎮', connected: false },
+                                        { name: 'GitHub', icon: '🐙', connected: true, status: 'Active' },
                                     ].map((service) => (
                                         <div key={service.name} className="flex items-center justify-between p-4 bg-slate-800/50 rounded-lg">
                                             <div className="flex items-center gap-3">
                                                 <span className="text-3xl">{service.icon}</span>
-                                                <span className="text-white font-medium">{service.name}</span>
+                                                <div>
+                                                    <span className="text-white font-medium block">{service.name}</span>
+                                                    <span className="text-xs text-green-400">{service.status}</span>
+                                                </div>
                                             </div>
-                                            <button className={service.connected ? 'btn-secondary text-sm' : 'btn-primary text-sm'}>
-                                                {service.connected ? 'Connected' : 'Connect'}
-                                            </button>
+                                            <span className="px-3 py-1 bg-green-500/20 text-green-400 rounded-md text-sm font-medium">
+                                                Connected
+                                            </span>
                                         </div>
                                     ))}
+                                    <div className="mt-6 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                                        <p className="text-sm text-blue-300">
+                                            <strong>Note:</strong> Additional integrations (Slack, Jira, Discord) are planned for future releases.
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -172,10 +177,17 @@ const SettingsPage: React.FC = () => {
                             </div>
                         )}
 
-                        {/* Save Button */}
-                        <div className="mt-8 flex gap-3 justify-end">
-                            <button className="btn-secondary">Cancel</button>
-                            <button className="btn-primary">Save Changes</button>
+                        {/* Save Button with Warning */}
+                        <div className="mt-8 space-y-4">
+                            <div className="p-4 bg-orange-500/10 border border-orange-500/30 rounded-lg">
+                                <p className="text-sm text-orange-300">
+                                    <strong>⚠️ Note:</strong> Settings functionality is currently in development. Changes will not be saved until backend integration is complete.
+                                </p>
+                            </div>
+                            <div className="flex gap-3 justify-end">
+                                <button className="btn-secondary" disabled>Cancel</button>
+                                <button className="btn-primary opacity-50 cursor-not-allowed" disabled>Save Changes (Coming Soon)</button>
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -24,7 +24,12 @@ async def create_space(
     if not user or not user.access_token:
         raise HTTPException(status_code=400, detail="User not connected to GitHub")
         
-    return await service.create_space_with_contributors(space_data, current_user.id, user.access_token)
+    # Use smart logic: Join existing if repo matches, or create new
+    result = await service.join_or_create_space(space_data, current_user.id, user.access_token)
+    
+    # Check action to determine response code/message if needed, but for now just return the space
+    # The frontend expects a SpaceResponse, so we return the 'space' part of the dict
+    return result["space"]
 
 @router.post("/connect", response_model=dict)
 async def connect_repository(
@@ -124,14 +129,19 @@ async def remove_project_member(
 @router.get("/projects/{project_id}/activity")
 async def get_project_activity(
     project_id: int,
+    type: str = Query(None, alias="type"),
     type_filter: str = Query(None),
     date_range: str = Query("7days"),
+    dateRange: str = Query(None),
     current_user: UserResponse = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get project activity log"""
     service = SpaceService(db)
-    return service.get_activity_log(project_id, type_filter, date_range)
+    # Support both camelCase (from frontend) and snake_case
+    final_type = type or type_filter
+    final_date_range = dateRange or date_range or "7days"
+    return service.get_activity_log(project_id, final_type, final_date_range)
 
 
 @router.get("/projects/{project_id}/analytics")

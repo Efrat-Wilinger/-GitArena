@@ -13,7 +13,12 @@ const CommitsPage: React.FC = () => {
 
     const { data: commits, isLoading, error, refetch } = useQuery<Commit[]>({
         queryKey: ['commits', repoId],
-        queryFn: () => githubApi.getCommits(Number(repoId), false, 50),
+        queryFn: async () => {
+            console.log('🔵 Fetching commits for repo:', repoId);
+            const result = await githubApi.getCommits(Number(repoId), false, 50);
+            console.log('🟢 Commits received:', result?.length || 0);
+            return result;
+        },
         enabled: !!repoId,
     });
 

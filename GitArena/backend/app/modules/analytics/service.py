@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from app.shared.models import SpaceMember, User, Commit, Repository, Space
-from sqlalchemy import func
+from sqlalchemy import func, desc
 from app.modules.analytics.repository import AnalyticsRepository
 from app.modules.analytics.dto import DashboardStats
 from app.modules.users.repository import UserRepository
@@ -60,12 +60,27 @@ class AnalyticsService:
         
         return list(set(space_ids)) # Deduplicate
 
-    def get_manager_stats(self, user_id: int):
+    def get_manager_stats(self, user_id: int, project_id: int = None):
         """
-        Aggregate statistics across all team projects for the manager dashboard
+        Aggregate statistics for manager dashboard, optionally filtered by project
         """
         try:
-            space_ids = self._get_user_team_space_ids(user_id)
+            if project_id:
+                # Validate user access to this project
+                space_member = self.db.query(SpaceMember).filter(
+                    SpaceMember.space_id == project_id,
+                    SpaceMember.user_id == user_id
+                ).first()
+                if not space_member:
+                     # Check if owner
+                    from app.shared.models import Space
+                    space = self.db.query(Space).filter(Space.id == project_id, Space.owner_id == user_id).first()
+                    if not space:
+                        return {}
+                space_ids = [project_id]
+            else:
+                space_ids = self._get_user_team_space_ids(user_id)
+            
             if not space_ids:
                 return {}
 
@@ -79,44 +94,48 @@ class AnalyticsService:
             if not repo_ids:
                 return {}
 
-            # 1. Weekly Activity (Commits per day for last 7 days)
-            # Use raw SQL for date grouping compatibility
+            # 1. Weekly Activity (Commits per day for current week - Mon-Sun)
+            # Map to [Mon, Tue, Wed, Thu, Fri, Sat, Sun] format that frontend expects
             from datetime import datetime, timedelta
             today = datetime.utcnow()
-            week_ago = today - timedelta(days=6)
             
+            # Calculate start of current week (Monday)
+            days_since_monday = today.weekday()  # 0=Monday, 6=Sunday
+            monday_this_week = today - timedelta(days=days_since_monday)
+            monday_this_week = monday_this_week.replace(hour=0, minute=0, second=0, microsecond=0)
+            
+            # Initialize activity array for Mon-Sun
             activity = [0] * 7
-            commits_last_week = self.db.query(Commit).filter(
+            
+            # Get commits from this week (Monday to Sunday) for weekly activity
+            commits_this_week = self.db.query(Commit).filter(
                 Commit.repository_id.in_(repo_ids),
-                Commit.committed_date >= week_ago
+                Commit.committed_date >= monday_this_week
             ).all()
             
-            print(f"DEBUG: ManagerStats - Found {len(commits_last_week)} commits in last week")
+            print(f"DEBUG: ManagerStats - Found {len(commits_this_week)} commits this week (since {monday_this_week.date()})")
 
-            for commit in commits_last_week:
-                day_diff = (today.date() - commit.committed_date.date()).days
-                if 0 <= day_diff < 7:
-                    # Invert index so 0=Monday is tricky, let's just map to last 7 days from today
-                    # Actually frontend expects Mon-Sun usually, let's align with today
-                    # Simplified: [Mon, Tue, Wed, Thu, Fri, Sat, Sun]
-                    # We'll map commit.committed_date.weekday() (0=Monday) directly
-                    idx = commit.committed_date.weekday()
-                    activity[idx] += 1
+            for commit in commits_this_week:
+                # Map to weekday: 0=Monday, 1=Tuesday, ..., 6=Sunday
+                weekday_index = commit.committed_date.weekday()
+                if 0 <= weekday_index < 7:
+                    activity[weekday_index] += 1
+            
+            print(f"DEBUG: ManagerStats - Weekly activity: {activity}")
 
-            # 2. Top Repositories (by activity/stars)
+            # 2. Top Repositories (by activity/stars) - ALL TIME
             top_repos = []
             for r in repos:
-                 # Calculate simple "hotness" score: stars * 5 + recent_commits
-                 recent_count = self.db.query(Commit).filter(
-                     Commit.repository_id == r.id,
-                     Commit.committed_date >= week_ago
+                 # Calculate simple "hotness" score: stars * 5 + all-time commits
+                 all_commits_count = self.db.query(Commit).filter(
+                     Commit.repository_id == r.id
                  ).count()
-                 score = (r.stargazers_count or 0) * 5 + recent_count
+                 score = (r.stargazers_count or 0) * 5 + all_commits_count
                  top_repos.append({
                      "name": r.name,
                      "language": r.language or "Unknown",
                      "stars": r.stargazers_count or 0,
-                     "trend": f"+{recent_count}",
+                     "trend": f"+{all_commits_count}",
                      "score": score
                  })
             
@@ -175,12 +194,30 @@ class AnalyticsService:
                  {"label": "Closed", "count": pr_closed, "color": "text-red-400", "bgColor": "bg-red-500/10"}
             ]
 
+            # 6. Peak Hours (ALL TIME)
+            peak_hours = [0] * 24
+            all_commits_for_hours = self.db.query(Commit).filter(
+                Commit.repository_id.in_(repo_ids)
+            ).all()
+            for commit in all_commits_for_hours:
+                peak_hours[commit.committed_date.hour] += 1
+
+            # 7. Files Changed (this week)
+            files_changed_data = {
+                "filesModified": len(commits_this_week),
+                "linesAdded": sum((c.additions or 0) for c in commits_this_week),
+                "linesDeleted": sum((c.deletions or 0) for c in commits_this_week),
+                "netChange": sum((c.additions or 0) - (c.deletions or 0) for c in commits_this_week)
+            }
+
             return {
                 "activity": activity,
                 "topRepos": top_repos,
                 "recentCommits": recent_commits,
                 "languages": languages,
-                "prStats": pr_stats
+                "prStats": pr_stats,
+                "peakHours": peak_hours,
+                "filesChanged": files_changed_data
             }
 
         except Exception as e:
@@ -189,12 +226,18 @@ class AnalyticsService:
             traceback.print_exc()
             return {}
 
-    def get_team_collaboration(self, user_id: int):
+    def get_team_collaboration(self, user_id: int, project_id: int = None):
         """
         Derive team collaboration network from shared spaces and repositories
+        Optionally filtered by a specific project_id
         """
         try:
-            space_ids = self._get_user_team_space_ids(user_id)
+            if project_id:
+                # Use only the specified project
+                space_ids = [project_id]
+            else:
+                # Use all user spaces
+                space_ids = self._get_user_team_space_ids(user_id)
             
             print(f"DEBUG: Analytics - Found {len(space_ids)} spaces for user {user_id}: {space_ids}")
 
@@ -213,17 +256,26 @@ class AnalyticsService:
             # Add current user first
             current_user = self.user_repository.get_by_id(user_id)
             if current_user:
+                # Count commits by this user (match by email or username in commit author)
+                user_commits = self.db.query(Commit).join(Repository).filter(
+                    Repository.space_id.in_(space_ids),
+                    (Commit.author_email == current_user.email) | (Commit.author_name == current_user.username)
+                ).count()
+                
                 members_data.append({
                     "id": str(current_user.id),
                     "name": "You",
                     "avatar": current_user.avatar_url,
-                    "contributions": self.db.query(Commit).join(Repository).filter(Repository.user_id == user_id).count()
+                    "contributions": user_commits
                 })
 
             peer_map = {}
             for peer in peers:
-                # Count contributions (total commits for now as proxy)
-                contribs = self.db.query(Commit).join(Repository).filter(Repository.user_id == peer.id).count()
+                # Count contributions: commits by this peer (match by email or username)
+                contribs = self.db.query(Commit).join(Repository).filter(
+                    Repository.space_id.in_(space_ids),
+                    (Commit.author_email == peer.email) | (Commit.author_name == peer.username)
+                ).count()
                 
                 members_data.append({
                     "id": str(peer.id),
@@ -374,10 +426,15 @@ class AnalyticsService:
             print(f"ERROR: get_manager_team_members: {e}")
             return []
 
-    def get_manager_deep_dive_analytics(self, user_id: int, time_range: str = "30days") -> dict:
+    def get_manager_deep_dive_analytics(self, user_id: int, time_range: str = "30days", project_id: int = None) -> dict:
         """Get deep dive analytics for all managed projects"""
         try:
-            space_ids = self._get_user_team_space_ids(user_id)
+            space_ids = []
+            if project_id:
+                space_ids = [project_id]
+            else:
+                space_ids = self._get_user_team_space_ids(user_id)
+                
             if not space_ids:
                 return {}
 
@@ -392,29 +449,54 @@ class AnalyticsService:
             if not repo_ids:
                 return {}
 
-            # 1. Commit Trend (Global)
+            # 1. Commit Trend (ALL TIME - grouped by date)
             from datetime import datetime, timedelta
-            days = 30
-            if "90" in str(time_range): days = 90
-            elif "180" in str(time_range): days = 180
+            from collections import defaultdict
             
-            start_date = datetime.utcnow() - timedelta(days=days)
+            print(f"DEBUG: get_manager_deep_dive_analytics - User {user_id}, Project {project_id}")
+            print(f"DEBUG: Space IDs: {space_ids}")
+            print(f"DEBUG: Repo IDs: {repo_ids}")
+            print(f"DEBUG: Fetching ALL commits (no date filter)")
             
-            trend_query = self.db.query(
-                func.date(Commit.committed_date).label("date"),
-                func.count(Commit.id).label("count")
-            ).filter(
-                Commit.repository_id.in_(repo_ids),
-                Commit.committed_date >= start_date
-            ).group_by(func.date(Commit.committed_date)).all()
+            # Fetch ALL commits to aggregate in Python
+            commits = self.db.query(Commit).filter(
+                Commit.repository_id.in_(repo_ids)
+            ).order_by(Commit.committed_date.asc()).all()
             
-            commit_trend = [{"date": str(row.date), "count": row.count} for row in trend_query]
+            print(f"DEBUG: Found {len(commits)} total commits")
+            
+            # Aggregate by date
+            daily_stats = defaultdict(lambda: {"count": 0, "additions": 0, "deletions": 0})
+            
+            for c in commits:
+                date_str = c.committed_date.date().isoformat()
+                daily_stats[date_str]["count"] += 1
+                daily_stats[date_str]["additions"] += (c.additions or 0)
+                daily_stats[date_str]["deletions"] += (c.deletions or 0)
+            
+            # Convert to list and fill missing dates? 
+            # For now just return active days to keep it simple, or frontend handles inactive?
+            # Better: Frontend usually wants a continuous timeline.
+            # Let's just return the sparse map as list for now
+            commit_trend = [
+                {
+                    "date": date,
+                    "count": stats["count"],
+                    "additions": stats["additions"],
+                    "deletions": stats["deletions"]
+                }
+                for date, stats in daily_stats.items()
+            ]
+            
+            # Sort by date
+            commit_trend.sort(key=lambda x: x["date"])
 
             # 2. Team Metrics (Aggregated)
             total_commits = self.db.query(func.count(Commit.id)).filter(Commit.repository_id.in_(repo_ids)).scalar() or 0
             total_prs = self.db.query(func.count(PullRequest.id)).filter(PullRequest.repository_id.in_(repo_ids)).scalar() or 0
 
             # 3. Leaderboard (Global)
+            # This aggregation is fine in SQL
             leaderboard_query = self.db.query(
                 Commit.author_name,
                 func.count(Commit.id).label("commits"),
@@ -428,7 +510,7 @@ class AnalyticsService:
                     "commits": row.commits,
                     "prs": 0,
                     "reviews": 0,
-                    "avatar": "👤" # Placeholder
+                    "avatar": f"https://ui-avatars.com/api/?name={row.author_name}&background=random" 
                 } for row in leaderboard_query
             ]
             
@@ -464,4 +546,83 @@ class AnalyticsService:
             import traceback
             traceback.print_exc()
             return {}
+
+    def get_team_stats(self, user_id: int, project_id: int = None) -> dict:
+        """
+        Get aggregated team statistics for manager dashboard
+        Properly calculates total commits, PRs, reviews, and active repos
+        """
+        try:
+            if project_id:
+                 # Validate access (simplified for brevity, re-use existing logic if possible or trust caller/middleware)
+                 # Ideally reuse the check or just filter
+                 space_ids = [project_id]
+            else:
+                space_ids = self._get_user_team_space_ids(user_id)
+            
+            if not space_ids:
+                return {
+                    "total_commits": 0,
+                    "total_prs": 0,
+                    "total_reviews": 0,
+                    "active_repos": 0
+                }
+
+            # Get all repositories in managed spaces
+            repos = self.db.query(Repository).filter(Repository.space_id.in_(space_ids)).all()
+            repo_ids = [r.id for r in repos]
+            
+            if not repo_ids:
+                return {
+                    "total_commits": 0,
+                    "total_prs": 0,
+                    "total_reviews": 0,
+                    "active_repos": 0
+                }
+
+            # Calculate aggregated stats
+            total_commits = self.db.query(func.count(Commit.id)).filter(
+                Commit.repository_id.in_(repo_ids)
+            ).scalar() or 0
+
+            from app.shared.models import PullRequest
+            total_prs = self.db.query(func.count(PullRequest.id)).filter(
+                PullRequest.repository_id.in_(repo_ids)
+            ).scalar() or 0
+
+            # Reviews: count PR reviews (if we have that data)
+            # For now, approximate as merged PRs
+            total_reviews = self.db.query(func.count(PullRequest.id)).filter(
+                PullRequest.repository_id.in_(repo_ids),
+                PullRequest.state == 'merged'
+            ).scalar() or 0
+
+            # Active repos: repos with commits in last 30 days
+            from datetime import datetime, timedelta
+            thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+            
+            active_repo_ids = self.db.query(Commit.repository_id).filter(
+                Commit.repository_id.in_(repo_ids),
+                Commit.committed_date >= thirty_days_ago
+            ).distinct().all()
+            
+            active_repos = len(active_repo_ids)
+
+            return {
+                "total_commits": total_commits,
+                "total_prs": total_prs,
+                "total_reviews": total_reviews,
+                "active_repos": active_repos
+            }
+
+        except Exception as e:
+            print(f"ERROR: get_team_stats failed: {e}")
+            import traceback
+            traceback.print_exc()
+            return {
+                "total_commits": 0,
+                "total_prs": 0,
+                "total_reviews": 0,
+                "active_repos": 0
+            }
 

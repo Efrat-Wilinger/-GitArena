@@ -135,7 +135,8 @@ const ProjectsPage: React.FC = () => {
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-gray-400 text-sm font-medium">Active This Week</p>
-                                    <p className="text-3xl font-bold text-white mt-1">{Math.min(spaces?.length || 0, 3)}</p>
+                                    <p className="text-3xl font-bold text-white mt-1">{spaces?.length || 0}</p>
+                                    <p className="text-xs text-gray-500 mt-1">Needs activity tracking</p>
                                 </div>
                                 <div className="w-12 h-12 bg-pink-500/20 rounded-full flex items-center justify-center">
                                     <svg className="w-6 h-6 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

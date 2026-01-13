@@ -37,20 +37,21 @@ const ProjectSelectionPage: React.FC = () => {
         )[0]
         : null;
 
-    const handleContinue = async () => {
-        console.log('🔵 handleContinue called!', mostRecentProject);
-        if (mostRecentProject) {
+    const handleContinue = async (project?: Space) => {
+        const selectedProject = project || mostRecentProject;
+        console.log('🔵 handleContinue called!', selectedProject);
+        if (selectedProject) {
             // Set project context
-            setCurrentProjectId(mostRecentProject.id);
-            setCurrentProjectName(mostRecentProject.name);
+            setCurrentProjectId(selectedProject.id);
+            setCurrentProjectName(selectedProject.name);
 
             // Fetch role and redirect
             try {
-                console.log('🟢 Fetching role for project:', mostRecentProject.id);
-                const roleResponse = await apiClient.get(`/spaces/${mostRecentProject.id}/my-role`);
+                console.log('🟢 Fetching role for project:', selectedProject.id);
+                const roleResponse = await apiClient.get(`/spaces/${selectedProject.id}/my-role`);
                 const role = roleResponse.data.role;
                 console.log('🟢 Role received:', role);
-                await fetchAndSetUserRole(mostRecentProject.id);
+                await fetchAndSetUserRole(selectedProject.id);
 
                 if (role === 'manager') {
                     console.log('🟢 Redirecting to /manager/dashboard');
@@ -71,10 +72,6 @@ const ProjectSelectionPage: React.FC = () => {
 
     const handleNewProject = () => {
         navigate('/projects/new');
-    };
-
-    const handleViewAll = () => {
-        navigate('/projects');
     };
 
     const handleGoToDashboard = () => {
@@ -127,19 +124,16 @@ const ProjectSelectionPage: React.FC = () => {
 
                 {/* Action Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
-                    {/* Continue with Recent Project */}
-                    <div
-                        onClick={handleContinue}
-                        className="group relative bg-gradient-to-br from-cyan-600/10 via-blue-600/10 to-purple-600/10 backdrop-blur-xl border border-cyan-500/30 rounded-2xl p-8 cursor-pointer hover:border-cyan-500 transition-all duration-300 overflow-hidden hover:scale-[1.02] hover:shadow-2xl hover:shadow-cyan-500/20"
-                    >
+                    {/* Continue with Projects */}
+                    <div className="group relative bg-gradient-to-br from-cyan-600/10 via-blue-600/10 to-purple-600/10 backdrop-blur-xl border border-cyan-500/30 rounded-2xl p-8 transition-all duration-300 overflow-hidden hover:border-cyan-500 hover:shadow-2xl hover:shadow-cyan-500/20">
                         {/* Glow Effect */}
                         <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/0 to-blue-500/0 group-hover:from-cyan-500/5 group-hover:to-blue-500/5 transition-all duration-500"></div>
 
                         <div className="relative z-10">
                             {/* Icon */}
-                            <div className="w-16 h-16 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform">
+                            <div className="w-16 h-16 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center mb-6 shadow-lg">
                                 <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                                 </svg>
                             </div>
 
@@ -147,49 +141,48 @@ const ProjectSelectionPage: React.FC = () => {
                             <h3 className="text-2xl font-bold text-white mb-3">
                                 Continue Working
                             </h3>
+                            <p className="text-gray-400 mb-6">
+                                Select a project to continue
+                            </p>
 
-                            {mostRecentProject ? (
-                                <>
-                                    <p className="text-gray-400 mb-4">
-                                        Pick up where you left off
-                                    </p>
-                                    <div className="bg-black/30 rounded-lg p-4 border border-gray-700/50">
-                                        <div className="flex items-start gap-3">
-                                            <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold flex-shrink-0">
-                                                {mostRecentProject.name.charAt(0).toUpperCase()}
+                            <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                                {spaces && spaces.length > 0 ? (
+                                    spaces.map((project) => (
+                                        <div
+                                            key={project.id}
+                                            onClick={() => handleContinue(project)}
+                                            className="bg-black/30 hover:bg-white/5 rounded-lg p-4 border border-gray-700/50 hover:border-cyan-500/50 cursor-pointer transition-all flex items-center gap-3 group/item"
+                                        >
+                                            <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold flex-shrink-0 shadow-lg group-hover/item:scale-110 transition-transform">
+                                                {project.name.charAt(0).toUpperCase()}
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <h4 className="font-semibold text-white truncate">{mostRecentProject.name}</h4>
-                                                <p className="text-sm text-gray-500 line-clamp-1">{mostRecentProject.description || 'No description'}</p>
-                                                <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
-                                                    <span>{mostRecentProject.members_count} member{mostRecentProject.members_count !== 1 ? 's' : ''}</span>
-                                                </div>
+                                                <h4 className="font-semibold text-white truncate group-hover/item:text-cyan-400 transition-colors">{project.name}</h4>
+                                                <p className="text-sm text-gray-500 line-clamp-1">{project.description || 'No description'}</p>
+                                            </div>
+                                            <div className="text-gray-500 group-hover/item:text-white transition-colors">
+                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                                </svg>
                                             </div>
                                         </div>
+                                    ))
+                                ) : (
+                                    <div className="text-center py-8 text-gray-500 bg-black/20 rounded-lg border border-gray-800 border-dashed">
+                                        No projects found
                                     </div>
-                                </>
-                            ) : (
-                                <p className="text-gray-400">
-                                    View all your projects
-                                </p>
-                            )}
-                        </div>
-
-                        {/* Arrow indicator */}
-                        <div className="absolute bottom-6 right-6 text-cyan-400 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                            </svg>
-                        </div>
-                    </div>
+                                )}
+                            </div>
+                        </div >
+                    </div >
 
                     {/* Start New Project */}
-                    <div
+                    < div
                         onClick={handleNewProject}
                         className="group relative bg-gradient-to-br from-purple-600/10 via-pink-600/10 to-orange-600/10 backdrop-blur-xl border border-purple-500/30 rounded-2xl p-8 cursor-pointer hover:border-purple-500 transition-all duration-300 overflow-hidden hover:scale-[1.02] hover:shadow-2xl hover:shadow-purple-500/20"
                     >
                         {/* Glow Effect */}
-                        <div className="absolute inset-0 bg-gradient-to-br from-purple-500/0 to-pink-500/0 group-hover:from-purple-500/5 group-hover:to-pink-500/5 transition-all duration-500"></div>
+                        < div className="absolute inset-0 bg-gradient-to-br from-purple-500/0 to-pink-500/0 group-hover:from-purple-500/5 group-hover:to-pink-500/5 transition-all duration-500" ></div >
 
                         <div className="relative z-10">
                             {/* Icon */}
@@ -237,31 +230,6 @@ const ProjectSelectionPage: React.FC = () => {
                             </svg>
                         </div>
                     </div>
-                </div>
-
-                {/* Quick Links */}
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-4 text-sm">
-                    {spaces && spaces.length > 1 && (
-                        <button
-                            onClick={handleViewAll}
-                            className="text-gray-400 hover:text-white transition-colors flex items-center gap-2"
-                        >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-                            </svg>
-                            View all {spaces.length} projects
-                        </button>
-                    )}
-                    <span className="text-gray-600 hidden sm:block">•</span>
-                    <button
-                        onClick={handleGoToDashboard}
-                        className="text-gray-400 hover:text-white transition-colors flex items-center gap-2"
-                    >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                        </svg>
-                        Go to dashboard
-                    </button>
                 </div>
             </div>
         </div>

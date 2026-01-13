@@ -20,7 +20,6 @@ import { ProjectProvider } from './contexts/ProjectContext';
 import TeamManagementPage from './pages/manager/TeamManagementPage';
 import ActivityJournalPage from './pages/manager/ActivityJournalPage';
 import SettingsPage from './pages/manager/SettingsPage';
-import AnalyticsPage from './pages/AnalyticsPage';
 
 // Member pages
 import MemberDashboardPage from './pages/member/MemberDashboardPage';
@@ -85,11 +84,7 @@ function App() {
                                         <ActivityJournalPage />
                                     </ProtectedRoute>
                                 } />
-                                <Route path="analytics" element={
-                                    <ProtectedRoute requiredRole="manager">
-                                        <AnalyticsPage />
-                                    </ProtectedRoute>
-                                } />
+
                                 <Route path="settings" element={
                                     <ProtectedRoute requiredRole="manager">
                                         <SettingsPage />
@@ -119,9 +114,9 @@ function App() {
                             {/* Shared Routes */}
                             <Route path="readme/:repoId" element={<ReadmeViewerPage />} />
                             <Route path="repositories" element={<RepositoriesPage />} />
-                            <Route path="repositories/:repositoryId/commits" element={<CommitsPage />} />
-                            <Route path="repositories/:repositoryId/code" element={<RepositoryCodePage />} />
-                            <Route path="repositories/:repositoryId/team-analysis" element={<RepositoryTeamAnalysisPage />} />
+                            <Route path="repositories/:repoId/commits" element={<CommitsPage />} />
+                            <Route path="repositories/:repoId/code" element={<RepositoryCodePage />} />
+                            <Route path="repositories/:repoId/team-analysis" element={<RepositoryTeamAnalysisPage />} />
                             <Route path="ai-feedback-history" element={<AIFeedbackHistoryPage />} />
                             <Route path="projects" element={<ProjectsPage />} />
                             <Route path="projects/new" element={<CreateProjectPage />} />

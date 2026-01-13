@@ -76,6 +76,20 @@ export interface TeamMember {
     };
 }
 
+export interface TeamCollaborationResponse {
+    members: Array<{
+        id: string;
+        name: string;
+        avatar: string;
+        contributions: number;
+    }>;
+    collaborations: Array<{
+        from: string;
+        to: string;
+        strength: number;
+    }>;
+}
+
 export interface AnalyticsData {
     commitTrend: Array<{ date: string; count: number }>;
     languageDistribution: Array<{ name: string; percentage: number }>;
@@ -133,8 +147,26 @@ export const githubApi = {
     },
 
     // Manager Global View
-    getManagerActivityLog: async (filters?: { type?: string; dateRange?: string }): Promise<ActivityItem[]> => {
-        const response = await apiClient.get('/analytics/manager/activity', { params: filters });
+    getManagerActivityLog: async (filters?: { type?: string; dateRange?: string }, projectId?: number): Promise<ActivityItem[]> => {
+        const params = { ...filters, project_id: projectId };
+        const response = await apiClient.get('/analytics/manager/activity', { params });
+        return response.data;
+    },
+
+    getTeamCollaboration: async (projectId?: number): Promise<TeamCollaborationResponse> => {
+        const response = await apiClient.get('/analytics/collaboration', {
+            params: { project_id: projectId }
+        });
+        return response.data;
+    },
+
+    getTeamStats: async (projectId?: number): Promise<{
+        total_commits: number;
+        total_prs: number;
+        total_reviews: number;
+        active_repos: number;
+    }> => {
+        const response = await apiClient.get('/analytics/team-stats', { params: { project_id: projectId } });
         return response.data;
     },
 
@@ -143,8 +175,8 @@ export const githubApi = {
         return response.data;
     },
 
-    getManagerAnalytics: async (timeRange?: string): Promise<AnalyticsData> => {
-        const response = await apiClient.get('/analytics/manager/analytics-report', { params: { timeRange } });
+    getManagerAnalytics: async (timeRange?: string, projectId?: number): Promise<AnalyticsData> => {
+        const response = await apiClient.get('/analytics/manager/analytics-report', { params: { timeRange, project_id: projectId } });
         return response.data;
     },
 
@@ -253,6 +285,11 @@ export const githubApi = {
         const response = await apiClient.get('/ai/insights', {
             params: { userId }
         });
+        return response.data;
+    },
+
+    syncData: async (): Promise<any> => {
+        const response = await apiClient.post('/users/sync-projects');
         return response.data;
     }
 };

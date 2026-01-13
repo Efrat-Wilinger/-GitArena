@@ -148,22 +148,22 @@ const AchievementsPage: React.FC = () => {
             {/* Achievements */}
             <AchievementsSection achievements={stats.achievements} />
 
-            {/* Leaderboard Position */}
+            {/* Your Stats Summary */}
             <div className="modern-card p-8">
                 <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
                     <span className="w-2 h-8 bg-blue-500 rounded-full"></span>
-                    Your Ranking
+                    Your Progress
                 </h3>
                 <div className="grid grid-cols-3 gap-6">
                     <div className="text-center p-6 rounded-xl bg-gradient-to-br from-blue-500/20 to-blue-600/20">
-                        <div className="text-4xl mb-2">🥈</div>
-                        <div className="text-3xl font-bold text-blue-400 mb-1">#2</div>
-                        <div className="text-sm text-slate-400">Team Rank</div>
+                        <div className="text-4xl mb-2">📊</div>
+                        <div className="text-3xl font-bold text-blue-400 mb-1">{stats.xp || 0}</div>
+                        <div className="text-sm text-slate-400">Current XP</div>
                     </div>
                     <div className="text-center p-6 rounded-xl bg-gradient-to-br from-orange-500/20 to-orange-600/20">
-                        <div className="text-4xl mb-2">⚡</div>
-                        <div className="text-3xl font-bold text-orange-400 mb-1">234</div>
-                        <div className="text-sm text-slate-400">This Week</div>
+                        <div className="text-4xl mb-2">⭐</div>
+                        <div className="text-3xl font-bold text-orange-400 mb-1">{stats.achievements?.length || 0}</div>
+                        <div className="text-sm text-slate-400">Achievements</div>
                     </div>
                     <div className="text-center p-6 rounded-xl bg-gradient-to-br from-green-500/20 to-green-600/20">
                         <div className="text-4xl mb-2">🔥</div>
@@ -171,6 +171,9 @@ const AchievementsPage: React.FC = () => {
                         <div className="text-sm text-slate-400">Day Streak</div>
                     </div>
                 </div>
+                <p className="text-xs text-slate-500 mt-4 text-center">
+                    Leaderboard and ranking features coming soon
+                </p>
             </div>
 
             <AchievementUnlockAnimation show={showUnlock} onComplete={() => setShowUnlock(false)} />

@@ -99,7 +99,7 @@ const LoginPage: React.FC = () => {
                         </button>
 
                         <p className="mt-8 text-sm text-slate-400 font-medium">
-                            Trusted by 500+ development teams worldwide
+                            Open source project for team collaboration
                         </p>
                     </div>
 
