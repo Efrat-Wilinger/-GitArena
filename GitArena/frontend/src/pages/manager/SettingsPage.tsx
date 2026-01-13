@@ -54,16 +54,20 @@ const SettingsPage: React.FC = () => {
                                     <h3 className="text-xl font-bold text-white mb-4">Project Information</h3>
                                     <div className="space-y-4">
                                         <div>
-                                            <label className="block text-sm font-medium text-slate-400 mb-2">Project Name</label>
+                                            <label htmlFor="projectName" className="block text-sm font-medium text-slate-400 mb-2">Project Name</label>
                                             <input
+                                                id="projectName"
+                                                name="projectName"
                                                 type="text"
                                                 defaultValue="GitArena"
                                                 className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500"
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-medium text-slate-400 mb-2">Description</label>
+                                            <label htmlFor="projectDescription" className="block text-sm font-medium text-slate-400 mb-2">Description</label>
                                             <textarea
+                                                id="projectDescription"
+                                                name="projectDescription"
                                                 rows={3}
                                                 defaultValue="Team collaboration and productivity platform"
                                                 className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500"
@@ -75,13 +79,13 @@ const SettingsPage: React.FC = () => {
                                 <div className="border-t border-slate-800 pt-6">
                                     <h3 className="text-xl font-bold text-white mb-4">Preferences</h3>
                                     <div className="space-y-4">
-                                        <label className="flex items-center justify-between">
+                                        <label htmlFor="autoSync" className="flex items-center justify-between">
                                             <span className="text-white">Enable auto-sync</span>
-                                            <input type="checkbox" className="toggle" defaultChecked />
+                                            <input id="autoSync" name="autoSync" type="checkbox" className="toggle" defaultChecked />
                                         </label>
-                                        <label className="flex items-center justify-between">
+                                        <label htmlFor="publicFeed" className="flex items-center justify-between">
                                             <span className="text-white">Public activity feed</span>
-                                            <input type="checkbox" className="toggle" />
+                                            <input id="publicFeed" name="publicFeed" type="checkbox" className="toggle" />
                                         </label>
                                     </div>
                                 </div>
@@ -102,12 +106,12 @@ const SettingsPage: React.FC = () => {
                                         <div key={index} className="flex items-center justify-between p-4 bg-slate-800/50 rounded-lg">
                                             <span className="text-white">{perm.permission}</span>
                                             <div className="flex gap-6">
-                                                <label className="flex items-center gap-2 text-sm">
-                                                    <input type="checkbox" defaultChecked={perm.manager} />
+                                                <label htmlFor={`perm-${index}-manager`} className="flex items-center gap-2 text-sm">
+                                                    <input id={`perm-${index}-manager`} name={`perm-${index}-manager`} type="checkbox" defaultChecked={perm.manager} />
                                                     <span className="text-slate-400">Manager</span>
                                                 </label>
-                                                <label className="flex items-center gap-2 text-sm">
-                                                    <input type="checkbox" defaultChecked={perm.member} />
+                                                <label htmlFor={`perm-${index}-member`} className="flex items-center gap-2 text-sm">
+                                                    <input id={`perm-${index}-member`} name={`perm-${index}-member`} type="checkbox" defaultChecked={perm.member} />
                                                     <span className="text-slate-400">Member</span>
                                                 </label>
                                             </div>
@@ -152,26 +156,26 @@ const SettingsPage: React.FC = () => {
                             <div className="space-y-6">
                                 <h3 className="text-xl font-bold text-white mb-4">AI Configuration</h3>
                                 <div className="space-y-4">
-                                    <label className="flex items-center justify-between">
+                                    <label htmlFor="aiInsights" className="flex items-center justify-between">
                                         <div>
                                             <div className="text-white font-medium">Enable AI Insights</div>
                                             <div className="text-sm text-slate-400">Get intelligent recommendations</div>
                                         </div>
-                                        <input type="checkbox" className="toggle" defaultChecked />
+                                        <input id="aiInsights" name="aiInsights" type="checkbox" className="toggle" defaultChecked />
                                     </label>
-                                    <label className="flex items-center justify-between">
+                                    <label htmlFor="codeQuality" className="flex items-center justify-between">
                                         <div>
                                             <div className="text-white font-medium">Code Quality Analysis</div>
                                             <div className="text-sm text-slate-400">Automatically analyze code quality</div>
                                         </div>
-                                        <input type="checkbox" className="toggle" defaultChecked />
+                                        <input id="codeQuality" name="codeQuality" type="checkbox" className="toggle" defaultChecked />
                                     </label>
-                                    <label className="flex items-center justify-between">
+                                    <label htmlFor="productivityInsights" className="flex items-center justify-between">
                                         <div>
                                             <div className="text-white font-medium">Productivity Insights</div>
                                             <div className="text-sm text-slate-400">Track team productivity patterns</div>
                                         </div>
-                                        <input type="checkbox" className="toggle" defaultChecked />
+                                        <input id="productivityInsights" name="productivityInsights" type="checkbox" className="toggle" defaultChecked />
                                     </label>
                                 </div>
                             </div>

@@ -10,8 +10,8 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision = '002_add_ai_feedback_metrics'
-down_revision = '001_initial_migration'
+revision = '007_add_ai_feedback_metrics'
+down_revision = '006'
 branch_labels = None
 depends_on = None
 

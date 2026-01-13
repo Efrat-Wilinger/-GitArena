@@ -78,12 +78,21 @@ class UserService:
         existing_user = self.repository.get_by_github_id(str(github_user["id"]))
 
         
+        # DEBUG INPUT DATA
+        logger.info(f"SERVICE_INPUT_DATA: login={github_user.get('login')}, email={github_user.get('email')}, name={github_user.get('name')}")
+        
+        # Ensure email is captured - sometimes it is null in public profile
+        email = github_user.get("email")
+        if not email:
+            logger.warning("GITHUB_EMAIL_MISSING: Email is null in public profile info")
+            # We could fetch private emails here if we had the scope and logic, for now just log it.
+
         user_data = UserCreate(
             github_id=str(github_user["id"]),
             github_login=github_user["login"],
             username=github_user["login"],
-            email=github_user.get("email"),
-            name=github_user.get("name"),
+            email=email,
+            name=github_user.get("name") or github_user["login"], # Fallback to login if name is empty
             avatar_url=github_user.get("avatar_url"),
             access_token=access_token,
             bio=github_user.get("bio"),

@@ -313,7 +313,7 @@ class AnalyticsService:
             print(f"ERROR: AnalyticsService.get_team_collaboration failed: {e}")
             import traceback
             traceback.print_exc()
-            # Return empty structure on error to prevent frontend crash
+            return {"members": [], "collaborations": []}
 
     def get_manager_activity_log(self, user_id: int, filters: dict = None) -> list[dict]:
         """Aggregate activity log from all managed spaces"""

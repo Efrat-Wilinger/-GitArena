@@ -23,7 +23,10 @@ class RepositoryResponse(RepositoryBase):
     github_id: str
     is_synced: bool
     last_synced_at: Optional[datetime] = None
-    created_at: datetime
+    created_at: Optional[datetime] = None
+    name: Optional[str] = None
+    full_name: Optional[str] = None
+    url: Optional[str] = None
     
     class Config:
         from_attributes = True

@@ -9,6 +9,7 @@ import { PeakHours, FilesChanged } from '../components/NewDashboardWidgets';
 import RoleBasedView, { useUserRole } from '../components/RoleBasedView';
 import { githubApi, TeamCollaborationResponse } from '../api/github';
 import AIInsights from '../components/AIInsights';
+import TeamAIAnalytics from '../components/TeamAIAnalytics';
 import AnimatedCommitGraph from '../components/AnimatedCommitGraph';
 import ContributionHeatmap from '../components/ContributionHeatmap';
 import { AchievementsSection } from '../components/AchievementBadge';
@@ -62,7 +63,7 @@ const ProfilePage: React.FC = () => {
         enabled: userRole === 'manager',
     });
 
-    const { data: analytics, isLoading: analyticsLoading, error: analyticsError } = useQuery({
+    const { data: analytics } = useQuery({
         queryKey: ['managerDeepDive', '30days', currentProjectId],
         queryFn: async () => {
             console.log('🔵 Fetching manager analytics for project:', currentProjectId);
@@ -282,10 +283,13 @@ const ProfilePage: React.FC = () => {
                         </div>
                     </div>
                 ) : (
-                    <TeamCollaborationNetwork
-                        members={collaborationData?.members || []}
-                        collaborations={collaborationData?.collaborations || []}
-                    />
+                    <>
+                        <TeamAIAnalytics />
+                        <TeamCollaborationNetwork
+                            members={collaborationData?.members || []}
+                            collaborations={collaborationData?.collaborations || []}
+                        />
+                    </>
                 )}
             </ErrorBoundary>
 

@@ -38,7 +38,7 @@ class UserResponse(UserBase):
     github_id: str
     github_login: Optional[str] = None
     access_token: Optional[str] = None
-    created_at: datetime
+    created_at: Optional[datetime] = None
     stats: Optional[UserProfileStats] = None
 
     

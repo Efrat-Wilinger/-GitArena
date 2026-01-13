@@ -61,8 +61,10 @@ const CreateProjectPage: React.FC = () => {
 
             <form onSubmit={handleSubmit} className="space-y-6 bg-gray-800/50 p-8 rounded-2xl border border-gray-700">
                 <div>
-                    <label className="block text-sm font-medium text-gray-400 mb-2">Project Name</label>
+                    <label htmlFor="projectName" className="block text-sm font-medium text-gray-400 mb-2">Project Name</label>
                     <input
+                        id="projectName"
+                        name="projectName"
                         type="text"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
@@ -73,8 +75,10 @@ const CreateProjectPage: React.FC = () => {
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-gray-400 mb-2">Description</label>
+                    <label htmlFor="description" className="block text-sm font-medium text-gray-400 mb-2">Description</label>
                     <textarea
+                        id="description"
+                        name="description"
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
                         className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-cyan-500 focus:border-transparent outline-none h-24"

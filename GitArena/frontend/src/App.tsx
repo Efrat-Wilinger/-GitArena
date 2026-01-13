@@ -55,7 +55,7 @@ function App() {
     return (
         <QueryClientProvider client={queryClient}>
             <ProjectProvider>
-                <Router>
+                <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
                     <Routes>
                         <Route path="/login" element={<LoginPage />} />
                         <Route path="/auth/callback" element={<CallbackPage />} />

@@ -106,16 +106,16 @@ const ProjectSelectionPage: React.FC = () => {
                     <div className="flex items-center justify-center mb-6">
                         <div className="w-20 h-20 rounded-2xl overflow-hidden ring-4 ring-blue-500/20 shadow-xl">
                             {user?.avatar_url ? (
-                                <img src={user.avatar_url} alt={user.name || 'User'} className="w-full h-full object-cover" />
+                                <img src={user.avatar_url} alt={user.name || user.username || 'User'} className="w-full h-full object-cover" />
                             ) : (
                                 <div className="w-full h-full bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center text-2xl font-bold">
-                                    {user?.name?.charAt(0) || 'U'}
+                                    {(user?.name || user?.username)?.charAt(0) || 'U'}
                                 </div>
                             )}
                         </div>
                     </div>
                     <h1 className="text-5xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-white via-blue-100 to-purple-200">
-                        Welcome back, {user?.name?.split(' ')[0] || 'Developer'}!
+                        Welcome back, {(user?.name || user?.username)?.split(' ')[0] || 'Developer'}!
                     </h1>
                     <p className="text-xl text-gray-400">
                         What would you like to work on today?

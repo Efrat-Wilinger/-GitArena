@@ -38,8 +38,8 @@ app.add_middleware(
 
 # Exception handlers
 # Exception handlers
-# app.add_exception_handler(GitArenaException, exception_handler)
-# app.add_exception_handler(Exception, generic_exception_handler)
+app.add_exception_handler(GitArenaException, exception_handler)
+app.add_exception_handler(Exception, generic_exception_handler)
 
 from fastapi.responses import JSONResponse
 import traceback
