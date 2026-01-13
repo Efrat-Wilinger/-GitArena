@@ -42,7 +42,7 @@ try:
     else:
         # הצג את הניתוחים
         cursor.execute("""
-            SELECT 
+            SELECT   
                 af.id,
                 u.username,
                 u.email,

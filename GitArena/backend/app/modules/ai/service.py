@@ -152,6 +152,194 @@ Keep it concise.
             **kwargs
         )
     
+    async def auto_analyze_activity(self, user_id: int, repository_id: int, activity_type: str, activity_data: dict):
+        """
+        ניתוח אוטומטי של כל פעילות חדשה שמגיעה למערכת
+        
+        Args:
+            user_id: מזהה המשתמש
+            repository_id: מזהה הריפוזיטורי
+            activity_type: סוג הפעילות (commit, pull_request, review)
+            activity_data: נתוני הפעילות
+        
+        Returns:
+            dict: תוצאות הניתוח
+        """
+        from datetime import datetime, timedelta
+        from app.shared.models import Commit, PullRequest, Review, User, AIFeedback
+        from sqlalchemy import func
+        import json
+        from openai import AsyncOpenAI
+        
+        # Get user
+        user = self.db.query(User).filter(User.id == user_id).first()
+        if not user:
+            return {"error": "User not found"}
+        
+        # Gather recent activity for context (last 30 days)
+        thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+        
+        # Count recent activity
+        recent_commits = self.db.query(func.count(Commit.id)).filter(
+            Commit.repository_id == repository_id,
+            Commit.author_email == user.email,
+            Commit.committed_date >= thirty_days_ago
+        ).scalar() or 0
+        
+        recent_prs = self.db.query(func.count(PullRequest.id)).filter(
+            PullRequest.repository_id == repository_id,
+            PullRequest.author == user.github_login,
+            PullRequest.created_at >= thirty_days_ago
+        ).scalar() or 0
+        
+        recent_reviews = self.db.query(func.count(Review.id)).join(PullRequest).filter(
+            PullRequest.repository_id == repository_id,
+            Review.reviewer == user.github_login,
+            Review.submitted_at >= thirty_days_ago
+        ).scalar() or 0
+        
+        # Calculate metrics based on recent activity
+        # 1. Code Quality Score
+        if activity_type == "pull_request":
+            merge_success = 1 if activity_data.get("merged", False) else 0
+            code_quality_score = 85.0 + (merge_success * 10)  # Base 85, +10 if merged
+        else:
+            code_quality_score = 75.0  # Default for commits and reviews
+        
+        # 2. Code Volume
+        code_volume = 0
+        if activity_type == "commit":
+            code_volume = activity_data.get("additions", 0) + activity_data.get("deletions", 0)
+        elif activity_type == "pull_request":
+            code_volume = activity_data.get("additions", 0) + activity_data.get("deletions", 0)
+        
+        # 3. Effort Score (based on recent activity)
+        total_activity = recent_commits + recent_prs * 2 + recent_reviews
+        effort_score = min((total_activity / 20) * 100, 100)  # Max 20 activities = 100%
+        
+        # 4. Velocity Score (activity frequency)
+        activity_per_week = (recent_commits + recent_prs + recent_reviews) / 4.3  # 30 days ≈ 4.3 weeks
+        velocity_score = min((activity_per_week / 10) * 100, 100)  # 10 activities/week = 100%
+        
+        # 5. Consistency Score
+        consistency_score = min(velocity_score * 0.85, 100)  # Simplified
+        
+        # Generate AI insights for this specific activity
+        ai_insight = ""
+        if settings.OPENAI_API_KEY:
+            try:
+                client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+                
+                activity_summary = f"""
+Activity Type: {activity_type}
+User: {user.name or user.username} ({user.email})
+Recent Stats (30 days):
+- Commits: {recent_commits}
+- PRs: {recent_prs}
+- Reviews: {recent_reviews}
+
+Current Activity Details:
+{json.dumps(activity_data, indent=2)}
+"""
+                
+                prompt = f"""{activity_summary}
+
+Provide a brief, encouraging insight about this developer's recent activity.
+Focus on:
+1. What they're doing well
+2. One specific suggestion for improvement
+3. Recognition of their contribution
+
+Keep it concise (2-3 sentences) and motivating. Use Hebrew if helpful.
+Return ONLY the insight text, no JSON or formatting."""
+                
+                response = await client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {"role": "system", "content": "You are a supportive engineering manager providing real-time feedback to developers."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=0.7,
+                    max_tokens=200
+                )
+                
+                ai_insight = response.choices[0].message.content.strip()
+                
+            except Exception as e:
+                print(f"AI Insight Error: {e}")
+                ai_insight = f"Great {activity_type}! Keep up the excellent work."
+        else:
+            ai_insight = f"Excellent {activity_type}! Your contribution is valued."
+        
+        # Determine improvement areas and strengths
+        improvement_areas = []
+        strengths = []
+        
+        if recent_commits < 5:
+            improvement_areas.append("Consider increasing commit frequency")
+        if recent_reviews < 3:
+            improvement_areas.append("Participate more in code reviews")
+        
+        if recent_commits >= 15:
+            strengths.append("Highly active contributor")
+        if recent_reviews >= 10:
+            strengths.append("Active code reviewer")
+        if activity_type == "review":
+            strengths.append("Collaborative team player")
+        
+        # Create feedback content
+        feedback_content = json.dumps({
+            "analysis_type": "auto_activity",
+            "activity_type": activity_type,
+            "activity_data": activity_data,
+            "recent_activity": {
+                "commits": recent_commits,
+                "prs": recent_prs,
+                "reviews": recent_reviews
+            },
+            "ai_insight": ai_insight,
+            "analyzed_at": datetime.utcnow().isoformat()
+        })
+        
+        # Save to ai_feedback table
+        try:
+            feedback = AIFeedback(
+                user_id=user_id,
+                repository_id=repository_id,
+                feedback_type="auto_analysis",
+                content=feedback_content,
+                meta_data={
+                    "activity_type": activity_type,
+                    "timestamp": datetime.utcnow().isoformat()
+                },
+                code_quality_score=round(code_quality_score, 2),
+                code_volume=code_volume,
+                effort_score=round(effort_score, 2),
+                velocity_score=round(velocity_score, 2),
+                consistency_score=round(consistency_score, 2),
+                improvement_areas=improvement_areas,
+                strengths=strengths
+            )
+            self.db.add(feedback)
+            self.db.commit()
+            
+            return {
+                "success": True,
+                "insight": ai_insight,
+                "metrics": {
+                    "code_quality_score": round(code_quality_score, 2),
+                    "code_volume": code_volume,
+                    "effort_score": round(effort_score, 2),
+                    "velocity_score": round(velocity_score, 2),
+                    "consistency_score": round(consistency_score, 2)
+                }
+            }
+        except Exception as e:
+            self.db.rollback()
+            print(f"Error saving auto analysis: {e}")
+            return {"error": str(e)}
+
+    
     async def analyze_repository_team(self, repository_id: int) -> dict:
         """
         Analyze all team members' performance in a repository
@@ -360,6 +548,53 @@ Return ONLY valid JSON with this exact structure (use Hebrew for descriptions if
                 # Check if developer-specific suggestions exist
                 dev_suggestions = ai_insights.get("improvement_suggestions", {}).get(email, "Continue your great work!")
                 
+                # Calculate advanced metrics
+                # 1. Code Quality Score (based on PR merge rate and review approvals)
+                total_prs = stats["prs_created"] or 1
+                merge_rate = (stats["prs_merged"] / total_prs) * 100 if total_prs > 0 else 0
+                total_reviews = stats["reviews_given"] or 1
+                approval_rate = (stats["reviews_approved"] / total_reviews) * 100 if total_reviews > 0 else 0
+                code_quality_score = (merge_rate * 0.6 + approval_rate * 0.4)
+                
+                # 2. Code Volume (total lines changed)
+                code_volume = stats["additions"] + stats["deletions"]
+                
+                # 3. Effort Score (based on commits, PRs, and code volume)
+                commit_effort = min((stats["commits"] / 50) * 100, 100)  # Max 50 commits = 100%
+                pr_effort = min((stats["prs_created"] / 20) * 100, 100)  # Max 20 PRs = 100%
+                volume_effort = min((code_volume / 5000) * 100, 100)  # Max 5000 lines = 100%
+                effort_score = (commit_effort * 0.4 + pr_effort * 0.3 + volume_effort * 0.3)
+                
+                # 4. Velocity Score (commits per week)
+                commits_per_week = stats["commits"] / 13  # 90 days ≈ 13 weeks
+                velocity_score = min((commits_per_week / 5) * 100, 100)  # 5 commits/week = 100%
+                
+                # 5. Consistency Score (based on even distribution)
+                # Higher score if work is distributed evenly
+                # This is a simplified calculation - in real scenario we'd check commit dates
+                consistency_score = min(velocity_score * 0.9, 100)  # Simplified for now
+                
+                # Extract improvement areas and strengths from AI insights
+                improvement_areas = []
+                strengths = []
+                
+                # Parse dev_suggestions to extract areas
+                if isinstance(dev_suggestions, str):
+                    # Simple heuristic: look for positive and negative keywords
+                    if merge_rate < 60:
+                        improvement_areas.append("PR merge rate needs improvement")
+                    if stats["reviews_given"] < 5:
+                        improvement_areas.append("Increase code review participation")
+                    if commits_per_week < 2:
+                        improvement_areas.append("Boost commit frequency")
+                    
+                    if merge_rate >= 80:
+                        strengths.append("Excellent PR merge rate")
+                    if stats["reviews_given"] >= 10:
+                        strengths.append("Active code reviewer")
+                    if stats == best_performer:
+                        strengths.append("Top team performer")
+                
                 feedback_content = json.dumps({
                     "analysis_type": "team_performance",
                     "period": "90_days",
@@ -367,10 +602,17 @@ Return ONLY valid JSON with this exact structure (use Hebrew for descriptions if
                     "rank": "best_performer" if stats == best_performer else "team_member",
                     "improvement_suggestions": dev_suggestions,
                     "team_health": ai_insights.get("team_health", ""),
-                    "collaboration_insights": ai_insights.get("collaboration_insights", "")
+                    "collaboration_insights": ai_insights.get("collaboration_insights", ""),
+                    "metrics": {
+                        "code_quality_score": round(code_quality_score, 2),
+                        "code_volume": code_volume,
+                        "effort_score": round(effort_score, 2),
+                        "velocity_score": round(velocity_score, 2),
+                        "consistency_score": round(consistency_score, 2)
+                    }
                 })
                 
-                # Create feedback entry
+                # Create feedback entry with all new fields
                 feedback = AIFeedback(
                     user_id=user.id,
                     repository_id=repository_id,
@@ -380,7 +622,15 @@ Return ONLY valid JSON with this exact structure (use Hebrew for descriptions if
                         "performance_score": stats["performance_score"],
                         "is_best_performer": stats == best_performer,
                         "analysis_date": datetime.utcnow().isoformat()
-                    }
+                    },
+                    # New performance metrics
+                    code_quality_score=round(code_quality_score, 2),
+                    code_volume=code_volume,
+                    effort_score=round(effort_score, 2),
+                    velocity_score=round(velocity_score, 2),
+                    consistency_score=round(consistency_score, 2),
+                    improvement_areas=improvement_areas,
+                    strengths=strengths
                 )
                 self.db.add(feedback)
         

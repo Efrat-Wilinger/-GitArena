@@ -58,12 +58,15 @@ async def get_feedback_history(
     """
     Get history of all AI feedback/analyses
     Can filter by repository_id and user_id
-    Returns all saved analyses from ai_feedback table
+    Returns all saved analyses from ai_feedback table with performance metrics
     """
     from app.shared.models import AIFeedback, User, Repository
     from sqlalchemy import desc
     
-    query = db.query(AIFeedback).filter(AIFeedback.feedback_type == 'team_analysis')
+    # Include both team_analysis and auto_analysis
+    query = db.query(AIFeedback).filter(
+        AIFeedback.feedback_type.in_(['team_analysis', 'auto_analysis'])
+    )
     
     if repository_id:
         query = query.filter(AIFeedback.repository_id == repository_id)
@@ -84,14 +87,26 @@ async def get_feedback_history(
             "user": {
                 "id": user.id if user else None,
                 "username": user.username if user else None,
-                "email": user.email if user else None
+                "email": user.email if user else None,
+                "name": user.name if user else None
             },
             "repository": {
                 "id": repo.id if repo else None,
                 "name": repo.name if repo else None
             },
+            "feedback_type": feedback.feedback_type,
             "content": feedback.content,
             "meta_data": feedback.meta_data,
+            # New performance metrics
+            "metrics": {
+                "code_quality_score": feedback.code_quality_score,
+                "code_volume": feedback.code_volume,
+                "effort_score": feedback.effort_score,
+                "velocity_score": feedback.velocity_score,
+                "consistency_score": feedback.consistency_score
+            },
+            "improvement_areas": feedback.improvement_areas or [],
+            "strengths": feedback.strengths or [],
             "created_at": feedback.created_at.isoformat() if feedback.created_at else None
         })
     
@@ -142,3 +157,37 @@ async def auto_analyze_repository(
         "message": "New analysis completed successfully",
         "data": result
     }
+
+
+@router.post("/activity/analyze")
+async def analyze_activity(
+    user_id: int,
+    repository_id: int,
+    activity_type: str,
+    activity_data: dict,
+    current_user: UserResponse = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    ניתוח אוטומטי של פעילות חדשה
+    מנתח כל commit, PR, או review ושומר ל-ai_feedback
+    
+    Args:
+        user_id: מזהה המשתמש
+        repository_id: מזהה הריפוזיטורי  
+        activity_type: commit, pull_request, או review
+        activity_data: הנתונים של הפעילות
+    """
+    service = AIService(db)
+    result = await service.auto_analyze_activity(
+        user_id=user_id,
+        repository_id=repository_id,
+        activity_type=activity_type,
+        activity_data=activity_data
+    )
+    
+    return {
+        "status": "completed" if result.get("success") else "error",
+        "data": result
+    }
+

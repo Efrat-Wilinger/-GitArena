@@ -4,6 +4,7 @@ import { authApi, User } from '../../api/auth';
 import { githubApi } from '../../api/github';
 
 import AIInsights from '../../components/AIInsights';
+import AIPerformanceDashboard from '../../components/AIPerformanceDashboard';
 import AnimatedCommitGraph from '../../components/AnimatedCommitGraph';
 import { WeeklyActivity, PullRequestStatus, LanguageDistribution } from '../../components/DashboardWidgets';
 import ContributionHeatmap from '../../components/ContributionHeatmap';
@@ -73,6 +74,9 @@ const MemberDashboardPage: React.FC = () => {
 
             {/* AI Personal Insights */}
             <AIInsights userId={user?.id} />
+
+            {/* AI Performance Dashboard - NEW! */}
+            <AIPerformanceDashboard userId={user?.id} />
 
             {/* Personal Activity - Real Data */}
             <AnimatedCommitGraph />

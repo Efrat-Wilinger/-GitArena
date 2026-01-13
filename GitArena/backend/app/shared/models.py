@@ -206,9 +206,21 @@ class AIFeedback(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     repository_id = Column(Integer, ForeignKey("repositories.id"), nullable=True)
     commit_id = Column(Integer, ForeignKey("commits.id"), nullable=True)
-    feedback_type = Column(String)  # code_review, suggestion, insight
+    feedback_type = Column(String)  # code_review, suggestion, insight, team_analysis, auto_analysis
     content = Column(Text)
     meta_data = Column(JSON, nullable=True)
+    
+    # Performance Metrics - מדדי ביצועים מתקדמים
+    code_quality_score = Column(Float, nullable=True)  # ציון איכות קוד (0-100)
+    code_volume = Column(Integer, nullable=True)  # כמות קוד (שורות)
+    effort_score = Column(Float, nullable=True)  # ציון השקעה (0-100)
+    velocity_score = Column(Float, nullable=True)  # ציון מהירות (0-100)
+    consistency_score = Column(Float, nullable=True)  # ציון קביעות (0-100)
+    
+    # Qualitative Analysis - ניתוח איכותי
+    improvement_areas = Column(JSON, nullable=True)  # רשימת תחומים לשיפור
+    strengths = Column(JSON, nullable=True)  # רשימת חוזקות
+    
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
