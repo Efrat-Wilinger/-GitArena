@@ -2,7 +2,17 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.shared.database import get_db
 from app.modules.analytics.service import AnalyticsService
-from app.modules.analytics.dto import DashboardStats, QuestCreate, QuestResponse
+from app.modules.analytics.dto import (
+    DashboardStats, 
+    QuestCreate, 
+    QuestResponse, 
+    DoraMetricsResponse, 
+    BurnoutMetricsResponse,
+    TeamCapacityResponse,
+    BottleneckResponse,
+    LeaderboardResponse,
+    KnowledgeBaseMetrics
+)
 from app.modules.users.controller import get_current_user
 from app.modules.users.dto import UserResponse
 from app.shared.models import Quest
@@ -194,3 +204,25 @@ async def get_team_capacity(
     """Get team capacity planning metrics"""
     service = AnalyticsService(db)
     return service.get_team_capacity(current_user.id, project_id)
+
+
+@router.get("/dora", response_model=DoraMetricsResponse)
+async def get_dora_metrics(
+    project_id: Optional[int] = None,
+    current_user: UserResponse = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get DORA metrics (Engineering Health)"""
+    service = AnalyticsService(db)
+    return service.get_dora_metrics(current_user.id, project_id)
+
+
+@router.get("/burnout", response_model=BurnoutMetricsResponse)
+async def get_burnout_metrics(
+    project_id: Optional[int] = None,
+    current_user: UserResponse = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get burnout risk metrics"""
+    service = AnalyticsService(db)
+    return service.get_burnout_metrics(current_user.id, project_id)

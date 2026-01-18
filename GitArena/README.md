@@ -21,10 +21,10 @@
 ## 📋 Table of Contents
 
 - [About](#-about)
+- [Quick Start](#-quick-start)
 - [Features](#-features)
 - [Architecture & Schema](#%EF%B8%8F-architecture--schema)
 - [Technology Stack](#-technology-stack)
-- [Quick Start](#-quick-start)
 - [Project Structure](#-project-structure)
 - [API Documentation](#-api-documentation)
 - [Development](#-development)
@@ -42,6 +42,84 @@ Our first sprint delivers the foundation:
 - ✅ **Story 207**: Repository selection and synchronization
 - ✅ **Story 210**: Commit pulling and daily sync automation
 - ✅ **Story 239**: Docker Compose infrastructure
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+*   [Docker Desktop](https://www.docker.com/products/docker-desktop/) 🐳
+*   [Node.js 20+](https://nodejs.org/) (for local dev without Docker)
+*   GitHub OAuth App Credentials 🔑
+
+### 1️⃣ Setup GitHub OAuth App
+1. Navigate to [GitHub Developer Settings](https://github.com/settings/developers)
+2. Click **"New OAuth App"**
+3. Fill in the details:
+   ```
+   Application name: GitArena
+   Homepage URL: http://localhost:3000
+   Authorization callback URL: http://localhost:3000/auth/callback
+   ```
+4. Copy your **Client ID** and generate a **Client Secret**.
+
+### 2️⃣ Clone & Configure
+```bash
+git clone <repo_url>
+cd GitArena
+```
+
+### 3️⃣ Configure Environment
+You need to set up the secrets for both Frontend and Backend.
+
+**Backend (`/backend/.env`):**
+```bash
+cd backend
+cp .env.example .env
+# Edit .env with your DATABASE_URL and GITHUB credentials
+```
+
+**Frontend (`/frontend/.env`):**
+```bash
+cd ../frontend
+cp .env.example .env
+# Edit .env and ensure VITE_API_URL=http://localhost:8000
+```
+
+### 4️⃣ Launch with Docker
+```bash
+cd ..
+docker-compose up --build -d
+```
+*   Wait a few minutes for the build to complete.
+*   The database will automatically initialize.
+
+### 5️⃣ Access the Application
+| Service | URL | Description |
+|---------|-----|-------------|
+| 🌐 **Frontend** | http://localhost:3000 | Main application |
+| 🔧 **Backend API** | http://localhost:8000 | REST API |
+| 📚 **API Docs** | http://localhost:8000/docs | Interactive API documentation |
+| 🗄️ **Database Admin** | http://localhost:5050 | PGAdmin (Login: `efrat.wilinger@gmail.com` / `12345`) |
+
+---
+
+## ✨ Features
+
+### 🔐 Authentication & Security
+- **GitHub OAuth Integration** - Seamless login with your GitHub account
+- **JWT Authentication** - Secure token-based authentication
+- **Role-Based Access Control** - Manage team permissions
+
+### 📊 Analytics Dashboard
+- **Repository Insights** - Track commits, PRs, and code changes
+- **Team Metrics** - Understand collaboration patterns
+- **Activity Tracking** - Monitor development velocity
+- **Visual Reports** - Beautiful charts and graphs
+
+### 🔄 Synchronization
+- **Automatic Sync** - Daily repository updates
+- **On-Demand Refresh** - Manual sync when needed
 
 ---
 
@@ -138,25 +216,6 @@ erDiagram
 
 ---
 
-## ✨ Features
-
-### 🔐 Authentication & Security
-- **GitHub OAuth Integration** - Seamless login with your GitHub account
-- **JWT Authentication** - Secure token-based authentication
-- **Role-Based Access Control** - Manage team permissions
-
-### 📊 Analytics Dashboard
-- **Repository Insights** - Track commits, PRs, and code changes
-- **Team Metrics** - Understand collaboration patterns
-- **Activity Tracking** - Monitor development velocity
-- **Visual Reports** - Beautiful charts and graphs
-
-### 🔄 Synchronization
-- **Automatic Sync** - Daily repository updates
-- **On-Demand Refresh** - Manual sync when needed
-
----
-
 ## 🛠️ Technology Stack
 
 <table>
@@ -182,65 +241,6 @@ erDiagram
 </td>
 </tr>
 </table>
-
----
-
-## 🚀 Quick Start
-
-### Prerequisites
-*   [Docker Desktop](https://www.docker.com/products/docker-desktop/) 🐳
-*   [Node.js 20+](https://nodejs.org/) (for local dev without Docker)
-*   GitHub OAuth App Credentials 🔑
-
-### 1️⃣ Setup GitHub OAuth App
-1. Navigate to [GitHub Developer Settings](https://github.com/settings/developers)
-2. Click **"New OAuth App"**
-3. Fill in the details:
-   ```
-   Application name: GitArena
-   Homepage URL: http://localhost:3000
-   Authorization callback URL: http://localhost:3000/auth/callback
-   ```
-4. Copy your **Client ID** and generate a **Client Secret**.
-
-### 2️⃣ Clone & Configure
-```bash
-git clone <repo_url>
-cd GitArena
-```
-
-### 3️⃣ Configure Environment
-You need to set up the secrets for both Frontend and Backend.
-
-**Backend (`/backend/.env`):**
-```bash
-cd backend
-cp .env.example .env
-# Edit .env with your DATABASE_URL and GITHUB credentials
-```
-
-**Frontend (`/frontend/.env`):**
-```bash
-cd ../frontend
-cp .env.example .env
-# Edit .env and ensure VITE_API_URL=http://localhost:8000
-```
-
-### 4️⃣ Launch with Docker
-```bash
-cd ..
-docker-compose up --build -d
-```
-*   Wait a few minutes for the build to complete.
-*   The database will automatically initialize.
-
-### 5️⃣ Access the Application
-| Service | URL | Description |
-|---------|-----|-------------|
-| 🌐 **Frontend** | http://localhost:3000 | Main application |
-| 🔧 **Backend API** | http://localhost:8000 | REST API |
-| 📚 **API Docs** | http://localhost:8000/docs | Interactive API documentation |
-| 🗄️ **Database Admin** | http://localhost:5050 | PGAdmin (Login: `efrat.wilinger@gmail.com` / `12345`) |
 
 ---
 
@@ -285,6 +285,33 @@ GitArena/
 | `GET` | `/analytics/manager/team` | Get team performance stats |
 
 > 💡 **Tip**: Visit [http://localhost:8000/docs](http://localhost:8000/docs) for full interactive documentation.
+
+---
+
+## 💻 Development
+
+### Running Without Docker
+
+#### Backend Setup
+```bash
+cd backend
+python -m venv venv
+# Windows:
+venv\Scripts\activate
+# Mac/Linux:
+source venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+alembic upgrade head
+uvicorn app.main:app --reload
+```
+
+#### Frontend Setup
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
 ---
 

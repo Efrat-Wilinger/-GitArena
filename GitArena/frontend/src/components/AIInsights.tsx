@@ -11,7 +11,7 @@ interface InsightCard {
     trend?: 'up' | 'down';
 }
 
-export const AIInsights: React.FC<{ userId?: number }> = ({ userId }) => {
+export const AIInsights: React.FC<{ userId?: number; projectId?: number }> = ({ userId, projectId }) => {
     const [insights, setInsights] = useState<InsightCard[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeInsight, setActiveInsight] = useState<number>(0);
@@ -20,7 +20,7 @@ export const AIInsights: React.FC<{ userId?: number }> = ({ userId }) => {
         const fetchInsights = async () => {
             setLoading(true);
             try {
-                const data = await githubApi.getAIInsights(userId);
+                const data = await githubApi.getAIInsights(userId, projectId);
 
                 // Safety check: Ensure data is an array
                 if (!Array.isArray(data)) {
@@ -29,9 +29,10 @@ export const AIInsights: React.FC<{ userId?: number }> = ({ userId }) => {
                     return;
                 }
 
-                // Map icons based on type
-                const insightsWithIcons = data.map(insight => ({
+                // Map icons and ensure IDs exist
+                const insightsWithIcons = data.map((insight, index) => ({
                     ...insight,
+                    id: insight.id || `insight-${index}-${Date.now()}`,
                     icon: insight.type === 'positive' ? '✨' : insight.type === 'warning' ? '⚠️' : 'ℹ️'
                 }));
                 setInsights(insightsWithIcons);
@@ -44,7 +45,7 @@ export const AIInsights: React.FC<{ userId?: number }> = ({ userId }) => {
         };
 
         fetchInsights();
-    }, [userId]);
+    }, [userId, projectId]);
 
     const getTypeStyles = (type: InsightCard['type']) => {
         switch (type) {
@@ -85,15 +86,14 @@ export const AIInsights: React.FC<{ userId?: number }> = ({ userId }) => {
                 {/* Header */}
                 <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-blue flex items-center justify-center shadow-lg shadow-blue-500/30 animate-float">
-                            <span className="text-2xl">🤖</span>
+                        <div className="w-12 h-12 rounded-xl bg-gradient-blue flex items-center justify-center shadow-lg shadow-blue-500/30">
+                            <span className="text-2xl">⚡</span>
                         </div>
                         <div>
-                            <h3 className="text-xl font-bold text-white">AI Insights</h3>
-                            <p className="text-sm text-slate-400">Powered by advanced analytics</p>
+                            <h3 className="text-xl font-bold text-white">Performance Insights</h3>
+                            <p className="text-sm text-slate-400">Your coding activity highlights</p>
                         </div>
                     </div>
-                    <button className="btn-secondary text-sm">View All</button>
                 </div>
 
                 {/* Insights Grid */}
@@ -102,7 +102,7 @@ export const AIInsights: React.FC<{ userId?: number }> = ({ userId }) => {
                         <div
                             key={insight.id}
                             className={`relative p-5 rounded-xl border ${getTypeStyles(insight.type)} 
-                                hover:scale-[1.02] transition-all duration-300 cursor-pointer group
+                                hover:scale-[1.02] transition-all duration-300 cursor-pointer group overflow-hidden
                                 ${activeInsight === index ? 'ring-2 ring-blue-500/50' : ''}`}
                             onClick={() => setActiveInsight(index)}
                             style={{
@@ -113,15 +113,15 @@ export const AIInsights: React.FC<{ userId?: number }> = ({ userId }) => {
                             <div className="absolute inset-0 bg-gradient-to-br from-blue-500/0 via-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-xl"></div>
 
                             <div className="relative z-10">
-                                <div className="flex items-start justify-between mb-3">
-                                    <div className="text-3xl">{insight.icon}</div>
+                                <div className="flex items-start justify-between mb-3 gap-4">
+                                    <div className="text-3xl flex-shrink-0">{insight.icon}</div>
                                     {insight.metric && (
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-2xl font-bold text-blue-400">
+                                        <div className="flex items-center gap-2 min-w-0">
+                                            <span className="text-xl font-bold text-blue-400 truncate max-w-[150px] block" title={insight.metric}>
                                                 {insight.metric}
                                             </span>
                                             {insight.trend && (
-                                                <div className={`w-6 h-6 rounded-full flex items-center justify-center
+                                                <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0
                                                     ${insight.trend === 'up' ? 'bg-green-500/20' : 'bg-red-500/20'}`}>
                                                     <svg className={`w-4 h-4 ${insight.trend === 'up' ? 'text-green-400' : 'text-red-400'}`}
                                                         fill="none" viewBox="0 0 24 24" stroke="currentColor">

@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { authApi, User } from '../api/auth';
 import apiClient, { analytics } from '../api/client';
 import TeamCollaborationNetwork from '../components/TeamCollaborationNetwork';
-import { LanguageDistribution, RecentCommits, PullRequestStatus } from '../components/DashboardWidgets';
+import { LanguageDistribution, RecentCommits, PullRequestStatus, WeeklyActivity } from '../components/DashboardWidgets';
 import { PeakHours, FilesChanged } from '../components/NewDashboardWidgets';
 import RoleBasedView, { useUserRole } from '../components/RoleBasedView';
 import { githubApi, TeamCollaborationResponse } from '../api/github';
@@ -100,7 +99,10 @@ const ProfilePage: React.FC = () => {
 
     const { data: doraMetrics } = useQuery({
         queryKey: ['doraMetrics', currentProjectId],
-        queryFn: () => analytics.getDoraMetrics(currentProjectId),
+        queryFn: async () => {
+            const response = await analytics.getDoraMetrics(currentProjectId);
+            return response.data;
+        },
         enabled: userRole === 'manager'
     });
 
@@ -120,23 +122,17 @@ const ProfilePage: React.FC = () => {
             if (contextProjectId) {
                 await apiClient.post(`/spaces/${contextProjectId}/sync`);
             } else {
-                await githubApi.syncData();
+                await apiClient.post('/github/sync');
             }
         },
         onMutate: () => setIsSyncing(true),
         onSuccess: () => {
-            // Invalidate ALL queries to force a complete refresh of the dashboard
+            // Invalidate all relevant queries
             queryClient.invalidateQueries({ queryKey: ['managerStats'] });
-            queryClient.invalidateQueries({ queryKey: ['managerAnalytics'] });
-            queryClient.invalidateQueries({ queryKey: ['managerDeepDive'] });
-            queryClient.invalidateQueries({ queryKey: ['teamStats'] });
+            queryClient.invalidateQueries({ queryKey: ['doraMetrics'] });
             queryClient.invalidateQueries({ queryKey: ['teamCollaboration'] });
-            queryClient.invalidateQueries({ queryKey: ['spaceActivity'] });
-            queryClient.invalidateQueries({ queryKey: ['managerActivityLog'] });
-            queryClient.invalidateQueries({ queryKey: ['collaborationGraph'] });
-            queryClient.invalidateQueries({ queryKey: ['projectProgress'] });
-            queryClient.invalidateQueries({ queryKey: ['recentActivities'] });
-            queryClient.invalidateQueries({ queryKey: ['currentUser'] }); // Refresh user stats too
+            queryClient.invalidateQueries({ queryKey: ['managerDeepDive'] });
+            queryClient.invalidateQueries({ queryKey: ['burnoutMetrics'] });
         },
         onError: (err) => {
             console.error("Sync failed:", err);
@@ -213,6 +209,10 @@ const ProfilePage: React.FC = () => {
         );
     }
 
+    // Debug Dora Metrics
+    console.log("🔍 PROFILE RENDER - DoraMetrics Data:", doraMetrics);
+    console.log("🔍 PROFILE RENDER - TeamStats Data:", teamStats);
+
     // Manager Dashboard
     const ManagerDashboard = (
         <div className="max-w-7xl mx-auto space-y-6 pb-12">
@@ -253,21 +253,31 @@ const ProfilePage: React.FC = () => {
                 </button>
             </div>
 
-            {/* Quick Stats Row */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {/* Quick Stats Row - Upgraded with Trend Indicators */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {[
-                    { label: 'Active Repos', value: teamStats?.active_repos, icon: '📂', color: 'blue' },
-                    { label: 'Total Commits', value: teamStats?.total_commits, icon: '💻', color: 'purple' },
-                    { label: 'Pull Requests', value: teamStats?.total_prs, icon: '🔀', color: 'green' },
-                    { label: 'Team Size', value: collaborationData?.members?.length, icon: '👥', color: 'orange' },
+                    { label: 'Active Repos', value: teamStats?.active_repos, icon: '📂', color: 'blue', trend: '+1' },
+                    { label: 'Total Commits', value: teamStats?.total_commits, icon: '💻', color: 'purple', trend: '+12%' },
+                    { label: 'Pull Requests', value: teamStats?.total_prs, icon: '🔀', color: 'green', trend: '0' },
+                    { label: 'Team Size', value: collaborationData?.members?.length, icon: '👥', color: 'orange', trend: 'Stable' },
                 ].map((stat, i) => (
-                    <div key={i} className="modern-card p-4 flex items-center gap-4 hover:scale-102 transition-transform cursor-default">
-                        <div className={`w-12 h-12 rounded-xl bg-${stat.color}-500/10 flex items-center justify-center text-2xl`}>
+                    <div key={i} className="modern-card p-6 flex items-center justify-between hover:scale-102 transition-transform cursor-default group relative overflow-hidden">
+                        <div className={`absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity text-6xl text-${stat.color}-500`}>
                             {stat.icon}
                         </div>
                         <div>
-                            <div className="text-2xl font-bold text-white">{stat.value || 0}</div>
-                            <div className="text-xs text-slate-500 font-medium uppercase tracking-wider">{stat.label}</div>
+                            <div className="text-3xl font-bold text-white mb-1">{stat.value || 0}</div>
+                            <div className="text-sm text-slate-400 font-medium uppercase tracking-wider">{stat.label}</div>
+                        </div>
+                        <div className={`flex flex-col items-end`}>
+                            <div className={`w-12 h-12 rounded-xl bg-${stat.color}-500/20 flex items-center justify-center text-2xl shadow-lg shadow-${stat.color}-500/10`}>
+                                {stat.icon}
+                            </div>
+                            {stat.trend && (
+                                <div className="mt-2 text-xs font-mono bg-white/5 px-2 py-1 rounded text-green-400 flex items-center gap-1">
+                                    <span>↗</span> {stat.trend}
+                                </div>
+                            )}
                         </div>
                     </div>
                 ))}
@@ -276,22 +286,25 @@ const ProfilePage: React.FC = () => {
             {/* Main Grid Layout (Bento Grid) */}
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
 
-                {/* 1. Engineering Health (Dora) - 8 Cols */}
-                <div className="xl:col-span-8">
+                {/* 1. Engineering Health (Dora) & Activity - 12 Cols */}
+                <div className="xl:col-span-8 space-y-6">
                     <DoraMetrics
-                        deploymentFrequency={doraMetrics?.data?.deploymentFrequency}
-                        deploymentsHistory={doraMetrics?.data?.deploymentsHistory}
-                        leadTime={doraMetrics?.data?.leadTime}
-                        leadTimeHistory={doraMetrics?.data?.leadTimeHistory}
-                        failureRate={doraMetrics?.data?.failureRate}
-                        mttr={doraMetrics?.data?.mttr}
+                        totalCommits={doraMetrics?.data?.totalCommits}
+                        totalLoc={doraMetrics?.data?.totalLoc}
+                        avgCommitSize={doraMetrics?.data?.avgCommitSize}
+                        contributorsCount={doraMetrics?.data?.contributorsCount}
                     />
+                    {/* New: Weekly Activity Chart */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <WeeklyActivity data={managerStats?.activity} />
+                        <BottleneckAlerts projectId={currentProjectId} />
+                    </div>
                 </div>
 
-                {/* 2. Urgent Alerts - 4 Cols */}
+                {/* 2. Urgent Alerts & Pulse - 4 Cols */}
                 <div className="xl:col-span-4 flex flex-col gap-6">
-                    <BottleneckAlerts projectId={currentProjectId} />
                     <BurnoutMonitor data={burnoutMetrics?.data} loading={burnoutLoading} />
+                    <TeamAIAnalytics projectId={currentProjectId ? String(currentProjectId) : undefined} />
                 </div>
 
                 {/* 3. Planning & Capacity - 12 Cols Split */}
@@ -335,7 +348,7 @@ const ProfilePage: React.FC = () => {
                         projectId={currentProjectId}
                     />
                     <ErrorBoundary name="AI Insights">
-                        <AIInsights userId={user?.id} />
+                        <AIInsights userId={user?.id} projectId={currentProjectId} />
                     </ErrorBoundary>
                 </div>
 
@@ -411,7 +424,7 @@ const ProfilePage: React.FC = () => {
 
             {/* Personal AI Insights */}
             <ErrorBoundary name="Personal Insights">
-                <AIInsights userId={user?.id} />
+                <AIInsights userId={user?.id} projectId={currentProjectId} />
             </ErrorBoundary>
 
             {/* Personal Commit Graph */}

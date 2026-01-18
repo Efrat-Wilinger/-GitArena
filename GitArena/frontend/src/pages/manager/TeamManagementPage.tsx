@@ -1,16 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { githubApi } from '../../api/github';
 import { useProject } from '../../contexts/ProjectContext';
-import LeaderboardWidget from '../../components/LeaderboardWidget';
 import TeamAIAnalytics from '../../components/TeamAIAnalytics';
 
 interface TeamMember {
     id: string;
-    username: string;
-    name: string;
-    email: string;
-    avatar_url: string;
-    role: 'manager' | 'member';
+    username?: string | null;
+    name?: string;
+    email?: string | null;
+    avatar_url?: string;
+    role: 'manager' | 'member' | 'external';
     joined_at: string;
     stats: {
         commits: number;
@@ -99,9 +98,9 @@ const TeamManagementPage: React.FC = () => {
     }).length;
 
     const filteredMembers = members.filter(m =>
-        m.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        m.username?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        m.email?.toLowerCase().includes(searchQuery.toLowerCase())
+        (m.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (m.username || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (m.email || '').toLowerCase().includes(searchQuery.toLowerCase())
     );
 
     return (
@@ -159,11 +158,6 @@ const TeamManagementPage: React.FC = () => {
                 ))}
             </div>
 
-            {/* Leaderboard Section */}
-            <div className="mb-2">
-                <LeaderboardWidget projectId={currentProjectId || undefined} />
-            </div>
-
             {/* Team Analytics (Real Data) */}
             <div className="mb-8">
                 <TeamAIAnalytics projectId={currentProjectId?.toString()} />
@@ -177,58 +171,73 @@ const TeamManagementPage: React.FC = () => {
                 </h3>
 
                 <div className="space-y-4">
-                    {filteredMembers.map((member) => (
-                        <div key={member.id} className="flex items-center gap-4 p-4 rounded-xl hover:bg-white/5 transition-colors group">
-                            {/* Avatar */}
-                            <div className="w-14 h-14 rounded-xl overflow-hidden ring-2 ring-blue-500/20">
-                                <img src={member.avatar_url} alt={member.name} className="w-full h-full object-cover" />
-                            </div>
-
-
-                            {/* Info */}
-                            <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-1">
-                                    <h4 className="text-white font-semibold truncate">{member.name}</h4>
-                                    {member.role === 'manager' && (
-                                        <span className="px-2 py-0.5 rounded-md text-xs font-semibold bg-gradient-orange text-white">
-                                            Manager
-                                        </span>
-                                    )}
-                                    <span className={`w-2 h-2 rounded-full ${member.status === 'active' ? 'bg-green-400' : 'bg-slate-600'}`}></span>
-                                </div>
-                                <p className="text-sm text-slate-400 truncate">{member.email}</p>
-                            </div>
-
-                            {/* Stats */}
-                            <div className="hidden md:flex gap-6 text-sm">
-                                <div className="text-center">
-                                    <div className="text-blue-400 font-bold">{member.stats.commits}</div>
-                                    <div className="text-slate-500 text-xs">Commits</div>
-                                </div>
-                                <div className="text-center">
-                                    <div className="text-blue-400 font-bold">{member.stats.prs}</div>
-                                    <div className="text-slate-500 text-xs">PRs</div>
-                                </div>
-                                <div className="text-center">
-                                    <div className="text-blue-400 font-bold">{member.stats.reviews}</div>
-                                    <div className="text-slate-500 text-xs">Reviews</div>
-                                </div>
-                            </div>
-
-                            {/* Actions */}
-                            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button
-                                    onClick={() => handleRemoveMember(member.id)}
-                                    className="p-2 hover:bg-red-500/10 rounded-lg transition-colors text-red-400"
-                                    title="Remove member"
-                                >
-                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                    </svg>
-                                </button>
-                            </div>
+                    {members.length === 0 ? (
+                        <div className="text-center py-12 bg-white/5 rounded-xl border border-dashed border-slate-700">
+                            <div className="text-4xl mb-4">🌪️</div>
+                            <h3 className="text-xl font-bold text-white mb-2">No Team Activity Found</h3>
+                            <p className="text-slate-400 max-w-md mx-auto mb-6">
+                                We couldn't detect any contributors for this project yet.
+                                This usually means your repositories haven't been synced or contain no commits.
+                            </p>
                         </div>
-                    ))}
+                    ) : filteredMembers.length === 0 ? (
+                        <div className="text-center py-8 text-slate-400">
+                            No members match your search.
+                        </div>
+                    ) : (
+                        filteredMembers.map((member) => (
+                            <div key={member.id} className="flex items-center gap-4 p-4 rounded-xl hover:bg-white/5 transition-colors group">
+                                {/* Avatar */}
+                                <div className="w-14 h-14 rounded-xl overflow-hidden ring-2 ring-blue-500/20">
+                                    <img src={member.avatar_url} alt={member.name} className="w-full h-full object-cover" />
+                                </div>
+
+
+                                {/* Info */}
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <h4 className="text-white font-semibold truncate">{member.name}</h4>
+                                        {member.role === 'manager' && (
+                                            <span className="px-2 py-0.5 rounded-md text-xs font-semibold bg-gradient-orange text-white">
+                                                Manager
+                                            </span>
+                                        )}
+                                        <span className={`w-2 h-2 rounded-full ${member.status === 'active' ? 'bg-green-400' : 'bg-slate-600'}`}></span>
+                                    </div>
+                                    <p className="text-sm text-slate-400 truncate">{member.email}</p>
+                                </div>
+
+                                {/* Stats */}
+                                <div className="hidden md:flex gap-6 text-sm">
+                                    <div className="text-center">
+                                        <div className="text-blue-400 font-bold">{member.stats.commits}</div>
+                                        <div className="text-slate-500 text-xs">Commits</div>
+                                    </div>
+                                    <div className="text-center">
+                                        <div className="text-blue-400 font-bold">{member.stats.prs}</div>
+                                        <div className="text-slate-500 text-xs">PRs</div>
+                                    </div>
+                                    <div className="text-center">
+                                        <div className="text-blue-400 font-bold">{member.stats.reviews}</div>
+                                        <div className="text-slate-500 text-xs">Reviews</div>
+                                    </div>
+                                </div>
+
+                                {/* Actions */}
+                                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button
+                                        onClick={() => handleRemoveMember(member.id)}
+                                        className="p-2 hover:bg-red-500/10 rounded-lg transition-colors text-red-400"
+                                        title="Remove member"
+                                    >
+                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                        ))
+                    )}
                 </div>
             </div>
 

@@ -33,7 +33,12 @@ const TeamAIAnalytics: React.FC<TeamAIAnalyticsProps> = ({ projectId }) => {
 
     if (!projectId) return null;
     if (loading) return <div className="text-center text-slate-400 p-8">Loading team intelligence...</div>;
-    if (members.length === 0) return <div className="text-center text-slate-400 p-8">No team data available.</div>;
+    if (members.length === 0) return (
+        <div className="modern-card p-8 text-center text-slate-400">
+            <h3 className="text-xl font-bold text-white mb-2">No Data Available</h3>
+            <p>We couldn't find any commit activity for this project. <br />Ensure your repositories are synced and contain recent commits.</p>
+        </div>
+    );
 
     // derived data for charts
     const activityData = members.map(m => ({
@@ -109,50 +114,6 @@ const TeamAIAnalytics: React.FC<TeamAIAnalyticsProps> = ({ projectId }) => {
                 </div>
             </div>
 
-            {/* Team Stats Table */}
-            <div className="modern-card p-6">
-                <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                    <span>🏆</span> Team Leaderboard
-                </h3>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                        <thead>
-                            <tr className="border-b border-gray-700 text-slate-400">
-                                <th className="pb-4 pl-4">Member</th>
-                                <th className="pb-4">Role</th>
-                                <th className="pb-4 text-center">Commits</th>
-                                <th className="pb-4 text-center">PRs</th>
-                                <th className="pb-4">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-700">
-                            {members.map((member) => (
-                                <tr key={member.id} className="group hover:bg-white/5 transition-colors">
-                                    <td className="py-4 pl-4 flex items-center gap-3">
-                                        <img src={member.avatar_url} alt={member.name} className="w-10 h-10 rounded-full" />
-                                        <div>
-                                            <div className="font-medium text-white">{member.name || member.username}</div>
-                                            <div className="text-xs text-slate-500">{member.email}</div>
-                                        </div>
-                                    </td>
-                                    <td className="py-4 text-slate-300">
-                                        <span className={`px-2 py-1 rounded text-xs ${member.role === 'manager' ? 'bg-purple-500/20 text-purple-400' : 'bg-slate-700 text-slate-300'}`}>
-                                            {member.role}
-                                        </span>
-                                    </td>
-                                    <td className="py-4 text-center font-mono text-blue-400">{member.stats.commits}</td>
-                                    <td className="py-4 text-center font-mono text-green-400">{member.stats.prs}</td>
-                                    <td className="py-4">
-                                        <span className={`text-xs ${member.stats.commits > 0 ? 'text-green-400' : 'text-slate-500'}`}>
-                                            {member.stats.commits > 0 ? 'Active' : 'Inactive'}
-                                        </span>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
         </div>
     );
 };

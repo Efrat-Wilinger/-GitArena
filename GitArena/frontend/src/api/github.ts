@@ -285,7 +285,7 @@ export const githubApi = {
     },
 
 
-    getAIInsights: async (userId?: number): Promise<Array<{
+    getAIInsights: async (userId?: number, projectId?: number): Promise<Array<{
         id: string;
         type: 'positive' | 'warning' | 'info';
         title: string;
@@ -294,7 +294,7 @@ export const githubApi = {
         trend?: 'up' | 'down';
     }>> => {
         const response = await apiClient.get('/ai/insights', {
-            params: { userId }
+            params: { user_id: userId, project_id: projectId } // Fixed keys to snake_case
         });
         return response.data;
     },

@@ -537,7 +537,7 @@ class AnalyticsService:
         return list(contributors_map.values())
 
     def get_manager_team_members(self, user_id: int, project_id: int = None) -> list[dict]:
-        """Aggregate team members from all managed spaces (CONTRIBUTORS)"""
+        """Aggregate team members from all managed spaces (Includes inactive members)"""
         try:
             if project_id:
                 space_ids = [project_id]
@@ -546,80 +546,97 @@ class AnalyticsService:
             if not space_ids:
                 return []
 
-            from app.shared.models import Space, Repository, Commit, SpaceMember
+            from app.shared.models import Space, Repository, Commit, SpaceMember, User
             from datetime import datetime
             from sqlalchemy import or_
             
-            # Get Repos
+            # Map to store aggregated member data
+            # Key: str(user_id) for registered, or "ext:{name}" for external
+            members_map = {}
+
+            # 1. Fetch Registered Space Members (Base list)
+            space_members = self.db.query(SpaceMember).filter(SpaceMember.space_id.in_(space_ids)).all()
+            
+            for sm in space_members:
+                user = sm.user
+                if not user: continue
+                
+                members_map[str(user.id)] = {
+                    "id": str(user.id),
+                    "username": user.username,
+                    "name": user.name or user.username,
+                    "email": user.email,
+                    "avatar_url": user.avatar_url,
+                    "role": sm.role, # 'manager', 'member'
+                    "joined_at": user.created_at.isoformat() if user.created_at else datetime.utcnow().isoformat(),
+                    "stats": {
+                        "commits": 0,
+                        "prs": 0,
+                        "reviews": 0
+                    },
+                    "is_registered": True
+                }
+
+            # 2. Fetch Repos & Contributors
             repos = self.db.query(Repository).filter(Repository.space_id.in_(space_ids)).all()
             repo_ids = [r.id for r in repos]
             
-            if not repo_ids:
-                return []
-            
-            # Get Contributors
-            contributors = self._get_repository_contributors(repo_ids)
-            
-            result = []
-            for contributor in contributors:
-                # Calculate aggregated stats for this contributor
-                # We interpret the contributor's identity set (emails/names) to match commits
+            if repo_ids:
+                contributors = self._get_repository_contributors(repo_ids)
                 
-                # Build filter list
-                emails = [e for e in contributor["git_emails"] if e]
-                names = [n for n in contributor["git_names"] if n]
-                
-                # SQLAlchemy filter construction
-                filters = []
-                if emails: filters.append(Commit.author_email.in_(emails))
-                if names: filters.append(Commit.author_name.in_(names))
-                
-                if not filters: continue # Should not happen if contributor has any identity info
-                
-                commit_count = self.db.query(func.count(Commit.id)).filter(
-                    Commit.repository_id.in_(repo_ids),
-                    or_(*filters)
-                ).scalar() or 0
+                for contributor in contributors:
+                    # Determine key
+                    key = None
+                    if contributor["is_registered"] and contributor["id"]:
+                        key = str(contributor["id"])
+                    else:
+                        key = f"ext-{contributor['name']}"
 
-                # Construct result object
-                # Determine role: if registered, check DB. If not, 'contributor'.
-                role = "member"
-                joined_at = datetime.utcnow().isoformat() # Mock for non-registered
-                
-                if contributor["is_registered"]:
-                    # Fetch real user to check role/joined
-                    # We could optimize this by loading it in _get_contributors but this is fine
-                    db_user = self.user_repository.get_by_id(contributor["id"])
-                    if db_user:
-                        joined_at = db_user.created_at.isoformat()
-                        # Check role in spaces
-                        is_manager = self.db.query(SpaceMember).filter(
-                            SpaceMember.space_id.in_(space_ids),
-                            SpaceMember.user_id == db_user.id,
-                            SpaceMember.role.in_(['manager', 'admin'])
-                        ).first() is not None
-                        if is_manager: role = "manager"
-                else:
-                    role = "external"
+                    # Calculate stats
+                    emails = [e for e in contributor["git_emails"] if e]
+                    names = [n for n in contributor["git_names"] if n]
+                    
+                    filters = []
+                    if emails: filters.append(Commit.author_email.in_(emails))
+                    if names: filters.append(Commit.author_name.in_(names))
+                    
+                    commit_count = 0
+                    if filters:
+                        commit_count = self.db.query(func.count(Commit.id)).filter(
+                            Commit.repository_id.in_(repo_ids),
+                            or_(*filters)
+                        ).scalar() or 0
+                    
+                    # Merge or Add
+                    if key in members_map:
+                        # Update existing member stats
+                        members_map[key]["stats"]["commits"] = commit_count
+                    else:
+                        # Add new (external) contributor
+                        members_map[key] = {
+                            "id": key,
+                            "username": contributor["username"],
+                            "name": contributor["name"],
+                            "email": contributor["email"],
+                            "avatar_url": contributor["avatar_url"],
+                            "role": "external",
+                            "joined_at": datetime.utcnow().isoformat(),
+                            "stats": {
+                                "commits": commit_count,
+                                "prs": 0,
+                                "reviews": 0
+                            },
+                            "is_registered": contributor["is_registered"]
+                        }
 
-                result.append({
-                    "id": str(contributor["id"]) if contributor["id"] else f"ext-{contributor['name']}",
-                    "username": contributor["username"],
-                    "name": contributor["name"],
-                    "email": contributor["email"],
-                    "avatar_url": contributor["avatar_url"],
-                    "role": role,
-                    "joined_at": joined_at,
-                    "stats": {
-                        "commits": commit_count,
-                        "prs": 0,
-                        "reviews": 0
-                    }
-                })
+            # Convert to list
+            result = list(members_map.values())
             
-            # Sort by commits desc
-            result.sort(key=lambda x: x["stats"]["commits"], reverse=True)
+            # Sort: Managers first, then commit count
+            result.sort(key=lambda x: (x["role"] != "manager", -x["stats"]["commits"]))
+            
             return result
+            
         except Exception as e:
             print(f"ERROR: get_manager_team_members: {e}")
             import traceback
@@ -1232,6 +1249,7 @@ class AnalyticsService:
             doc_commits_count = 0
             readme_found = False
             contributing_found = False
+            license_found = False
             last_doc_update = None
             
             recent_threshold = datetime.utcnow() - timedelta(days=30)
@@ -1241,22 +1259,17 @@ class AnalyticsService:
                 is_doc_commit = False
                 
                 # Check diff_data if available
-                # Note: diff_data structure depends on how it was saved. Assuming list of files or similar.
-                # If diff_data is None, we can't know for sure, so skip or inspect message
-                
                 files = []
                 if commit.diff_data and isinstance(commit.diff_data, dict):
-                     # Accessing 'files' key if it exists, or iterating keys if it's a map
                      files = commit.diff_data.get('files', [])
                 elif commit.diff_data and isinstance(commit.diff_data, list):
                     files = commit.diff_data
                 
-                # Fallback: check commit message for hints if diff_data missing (not accurate but helpful)
+                # Fallback: check commit message
                 if not files and ("docs" in (commit.message or "").lower() or "readme" in (commit.message or "").lower()):
                      is_doc_commit = True
                 
                 for file_entry in files:
-                    # file_entry might be a string (filename) or dict
                     filename = ""
                     if isinstance(file_entry, str):
                         filename = file_entry
@@ -1265,13 +1278,19 @@ class AnalyticsService:
                     
                     filename_lower = filename.lower()
                     
+                    # File checks
+                    if 'readme.md' in filename_lower:
+                        readme_found = True
+                        is_doc_commit = True
+                    if 'contributing.md' in filename_lower:
+                        contributing_found = True
+                        is_doc_commit = True
+                    if 'license' in filename_lower or 'copying' in filename_lower:
+                        license_found = True
+                        is_doc_commit = True
+                    
                     if filename_lower.endswith('.md') or 'docs/' in filename_lower:
                         is_doc_commit = True
-                        
-                        if 'readme.md' in filename_lower:
-                            readme_found = True
-                        if 'contributing.md' in filename_lower:
-                            contributing_found = True
                 
                 if is_doc_commit:
                     doc_commits_count += 1
@@ -1285,10 +1304,11 @@ class AnalyticsService:
             score = 0
             if readme_found: score += 30
             if contributing_found: score += 20
+            if license_found: score += 10
             
             # Frenquency score (up to 30)
-            if recent_updates > 5: score += 30
-            elif recent_updates > 0: score += 15
+            if recent_updates > 5: score += 20
+            elif recent_updates > 0: score += 10
             
             # Ratio bonus (up to 20)
             ratio = (doc_commits_count / len(commits)) if commits else 0
@@ -1300,6 +1320,7 @@ class AnalyticsService:
                 "last_update": last_doc_update,
                 "readme_exists": readme_found,
                 "contributing_exists": contributing_found,
+                "license_exists": license_found,
                 "documentation_ratio": round(ratio, 2),
                 "recent_updates_count": recent_updates
             }
@@ -1312,6 +1333,7 @@ class AnalyticsService:
                 "health_score": 0,
                 "readme_exists": False,
                 "contributing_exists": False,
+                "license_exists": False,
                 "documentation_ratio": 0.0,
                 "recent_updates_count": 0
             }
@@ -1438,3 +1460,283 @@ class AnalyticsService:
             "sprint_risk": "Low",
             "member_loads": []
         }
+
+    def get_dora_metrics(self, user_id: int, project_id: int = None) -> dict:
+        """
+        Calculate DORA Metrics:
+        1. Deployment Frequency (merges to main)
+        2. Lead Time for Changes (commit to merge time)
+        3. Change Failure Rate (hotfixes / total deployments)
+        4. Mean Time to Recovery (time to fix)
+        """
+        try:
+            if project_id:
+                space_ids = [project_id]
+            else:
+                space_ids = self._get_user_team_space_ids(user_id)
+            
+            if not space_ids:
+                return {"data": self._empty_dora()}
+
+            from app.shared.models import Repository, PullRequest, Commit
+            from datetime import datetime, timedelta
+            
+            repos = self.db.query(Repository).filter(Repository.space_id.in_(space_ids)).all()
+            repo_ids = [r.id for r in repos]
+            
+            if not repo_ids:
+                return {"data": self._empty_dora()}
+
+            # 1. Deployment Frequency
+            # Count merged PRs in last 30 days
+            thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+            merged_prs = self.db.query(PullRequest).filter(
+                PullRequest.repository_id.in_(repo_ids),
+                PullRequest.state == 'merged',
+                PullRequest.merged_at >= thirty_days_ago
+            ).order_by(PullRequest.merged_at.asc()).all()
+            
+            deploy_count = len(merged_prs)
+            deployment_frequency = deploy_count / 30.0 # per day
+            
+            # History
+            history_map = {}
+            for pr in merged_prs:
+                day = pr.merged_at.date().isoformat()
+                history_map[day] = history_map.get(day, 0) + 1
+                
+            deployments_history = [{"day": day, "count": count} for day, count in history_map.items()]
+
+            # 2. Lead Time for Changes (Time from PR creation to merge)
+            # In a real system, would be first commit to deploy. PR creation to merge is a proxy.
+            total_lead_hours = 0
+            for pr in merged_prs:
+                if pr.created_at and pr.merged_at:
+                    delta = pr.merged_at - pr.created_at
+                    total_lead_hours += delta.total_seconds() / 3600.0
+            
+            lead_time = total_lead_hours / deploy_count if deploy_count > 0 else 0
+            
+            # Lead Time History (Moving avg? Or just daily avg)
+            lead_time_history = []
+            if deploy_count > 0:
+                 lead_time_history = [{"date": datetime.utcnow().date().isoformat(), "hours": round(lead_time, 1)}]
+
+            # 3. Change Failure Rate & 4. MTTR
+            # Look for commits with "fix", "hotfix", "revert" in message
+            failed_changes = 0
+            total_time_to_restore = 0 # minutes
+            
+            # Get recent commits
+            recent_commits = self.db.query(Commit).filter(
+                Commit.repository_id.in_(repo_ids),
+                Commit.committed_date >= thirty_days_ago
+            ).all()
+            
+            fix_keywords = ["hotfix", "urgent", "fix!", "revert"]
+            last_failure_time = None
+            
+            for commit in recent_commits:
+                msg = (commit.message or "").lower()
+                if any(k in msg for k in fix_keywords):
+                    failed_changes += 1
+                    # Approx MTTR: Assume fix took 60 mins if we can't measure
+                    total_time_to_restore += 60 
+
+            # 3. Active Days (Engagement) - replacing Failure Rate
+            # 4. Commit Velocity - replacing MTTR
+            
+            # Switch to ALL TIME stats for student projects to ensure visibility
+            all_commits = self.db.query(Commit).filter(
+                Commit.repository_id.in_(repo_ids)
+            ).all()
+
+            total_commits = len(all_commits)
+            
+            # Debug Log
+            try:
+                with open("debug_log.txt", "a") as f:
+                    f.write(f"\n--- Debug Request {datetime.utcnow()} ---\n")
+                    f.write(f"ProjectID: {project_id}\n")
+                    f.write(f"Repo IDs: {repo_ids}\n")
+                    f.write(f"Total Commits: {total_commits}\n")
+            except: 
+                pass
+            
+
+            
+            # Calculate Total LOC (Additions)
+            total_additions = sum((c.additions or 0) for c in all_commits)
+            total_deletions = sum((c.deletions or 0) for c in all_commits)
+            total_loc = total_additions - total_deletions
+            
+            # Avg Commit Size
+            avg_commit_size = round(total_additions / total_commits) if total_commits > 0 else 0
+            
+            # Contributors
+            unique_authors = {c.author_email or c.author_name for c in all_commits}
+            contributors_count = len(unique_authors)
+
+            # Keep legacy values but they will be ignored by frontend
+            failure_rate = (failed_changes / deploy_count * 100) if deploy_count > 0 else 0
+            mttr = total_time_to_restore / failed_changes if failed_changes > 0 else 0
+            
+            return {
+                "data": {
+                    "deploymentFrequency": deployment_frequency,
+                    "leadTime": lead_time,
+                    "failureRate": round(min(failure_rate, 100), 1),
+                    "mttr": round(mttr),
+                    "deploymentsHistory": deployments_history if 'deployments_history' in locals() else [],
+                    "leadTimeHistory": lead_time_history,
+                    # New Vitality Metrics (All Time)
+                    "totalCommits": total_commits,
+                    "totalLoc": total_loc,
+                    "avgCommitSize": avg_commit_size,
+                    "contributorsCount": contributors_count
+                }
+            }
+
+        except Exception as e:
+            print(f"ERROR: get_dora_metrics failed: {e}")
+            return {"data": self._empty_dora()}
+
+    def _empty_dora(self):
+        return {
+            "deploymentFrequency": 0,
+            "leadTime": 0,
+            "failureRate": 0,
+            "mttr": 0,
+            "deploymentsHistory": [],
+            "leadTimeHistory": []
+        }
+
+    def get_burnout_metrics(self, user_id: int, project_id: int = None) -> dict:
+        """
+        Analyze team burnout risk based on work patterns
+        """
+        try:
+            if project_id:
+                space_ids = [project_id]
+            else:
+                space_ids = self._get_user_team_space_ids(user_id)
+            
+            if not space_ids:
+                 return {"data": {"members": [], "overallRisk": 0}}
+
+            from app.shared.models import Repository, Commit
+            repos = self.db.query(Repository).filter(Repository.space_id.in_(space_ids)).all()
+            repo_ids = [r.id for r in repos]
+            
+            if not repo_ids:
+                 return {"data": {"members": [], "overallRisk": 0}}
+
+            # Analyze last 30 days
+            from datetime import datetime, timedelta
+            thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+            
+            commits = self.db.query(Commit).filter(
+                Commit.repository_id.in_(repo_ids),
+                Commit.committed_date >= thirty_days_ago
+            ).all()
+            
+            # Group by author
+            author_stats = {}
+            
+            for commit in commits:
+                author = commit.author_name or "Unknown"
+                if author not in author_stats:
+                    author_stats[author] = {
+                        "late_night": 0,
+                        "weekend": 0,
+                        "stress_commits": 0,
+                        "total": 0,
+                        "stressors": []
+                    }
+                
+                stats = author_stats[author]
+                stats["total"] += 1
+                
+                # Late night: 22:00 - 05:00
+                hour = commit.committed_date.hour
+                if hour >= 22 or hour < 5:
+                    stats["late_night"] += 1
+                
+                # Weekend: Sat (5) or Sun (6)
+                weekday = commit.committed_date.weekday()
+                if weekday >= 5:
+                    stats["weekend"] += 1
+                
+                # Stress keywords
+                msg = (commit.message or "").lower()
+                stress_words = ["wtf", "urgent", "damn", "hack", "broken", "fail", "stupid"]
+                if any(w in msg for w in stress_words):
+                    stats["stress_commits"] += 1
+                    if len(stats["stressors"]) < 3:
+                        stats["stressors"].append(commit.message)
+
+            # Calculate risk
+            members = []
+            total_risk = 0
+            
+            for author, stats in author_stats.items():
+                if stats["total"] < 5: continue # Skip inactive
+                
+                risk_score = 0
+                factors = []
+                
+                # Factor 1: Late Night Ratio
+                late_ratio = stats["late_night"] / stats["total"]
+                if late_ratio > 0.3:
+                    risk_score += 40
+                    factors.append("Night Owl")
+                elif late_ratio > 0.1:
+                    risk_score += 20
+                
+                # Factor 2: Weekend Ratio
+                weekend_ratio = stats["weekend"] / stats["total"]
+                if weekend_ratio > 0.3:
+                    risk_score += 30
+                    factors.append("No Weekend")
+                elif weekend_ratio > 0.1:
+                    risk_score += 15
+                
+                # Factor 3: Stress Comments
+                if stats["stress_commits"] > 0:
+                    risk_score += 20
+                    factors.append("Frustrated")
+                
+                risk_score = min(100, risk_score)
+                total_risk += risk_score
+                
+                status = "Healthy"
+                if risk_score > 70: status = "Critical"
+                elif risk_score > 30: status = "Warning"
+                
+                members.append({
+                    "name": author,
+                    "avatar": f"https://ui-avatars.com/api/?name={author}&background=random",
+                    "riskScore": risk_score,
+                    "status": status,
+                    "factors": factors,
+                    "recentStressors": stats["stressors"],
+                    "metrics": {
+                        "lateNight": stats["late_night"],
+                        "weekend": stats["weekend"],
+                        "stressCommits": stats["stress_commits"]
+                    }
+                })
+            
+            overall_risk = int(total_risk / len(members)) if members else 0
+            members.sort(key=lambda x: x["riskScore"], reverse=True)
+            
+            return {
+                "data": {
+                    "members": members,
+                    "overallRisk": overall_risk
+                }
+            }
+
+        except Exception as e:
+            print(f"ERROR: get_burnout_metrics failed: {e}")
+            return {"data": {"members": [], "overallRisk": 0}}

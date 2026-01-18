@@ -10,6 +10,9 @@ class SpaceBase(BaseModel):
 class SpaceCreate(SpaceBase):
     repository_id: int
 
+class SpaceUpdate(SpaceBase):
+    pass
+
 from app.modules.github.dto import RepositoryResponse
 
 class SpaceResponse(SpaceBase):

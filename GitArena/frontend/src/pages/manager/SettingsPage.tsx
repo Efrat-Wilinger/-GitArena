@@ -1,7 +1,67 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useProject } from '@/contexts/ProjectContext';
+import apiClient from '@/api/client';
+import { toast } from 'react-hot-toast';
+
+interface SpaceDetails {
+    id: number;
+    name: string;
+    description: string;
+    owner_id: number;
+}
 
 const SettingsPage: React.FC = () => {
+    const { currentProjectId, currentProjectName } = useProject();
     const [activeTab, setActiveTab] = useState('general');
+    const [isLoading, setIsLoading] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [formData, setFormData] = useState({
+        name: '',
+        description: ''
+    });
+
+    // Fetch space details on mount or project change
+    useEffect(() => {
+        const fetchSettings = async () => {
+            if (!currentProjectId) return;
+
+            setIsLoading(true);
+            try {
+                const response = await apiClient.get<SpaceDetails>(`/spaces/${currentProjectId}`);
+                setFormData({
+                    name: response.data.name,
+                    description: response.data.description || ''
+                });
+            } catch (error) {
+                console.error("Failed to fetch settings:", error);
+                toast.error("Failed to load project settings");
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchSettings();
+    }, [currentProjectId]);
+
+    const handleSave = async () => {
+        if (!currentProjectId) return;
+
+        setIsSaving(true);
+        try {
+            await apiClient.put(`/spaces/${currentProjectId}`, {
+                name: formData.name,
+                description: formData.description
+            });
+            toast.success("Settings saved successfully!");
+            // Optionally update context name if it changed, though context usually handles this via other means or requires a refresh
+            // window.location.reload(); // Simple refresh to propagate name changes
+        } catch (error) {
+            console.error("Failed to save settings:", error);
+            toast.error("Failed to save changes");
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     const tabs = [
         { id: 'general', label: 'General', icon: '⚙️' },
@@ -12,12 +72,20 @@ const SettingsPage: React.FC = () => {
         { id: 'security', label: 'Security', icon: '🔒' },
     ];
 
+    if (!currentProjectId) {
+        return (
+            <div className="flex items-center justify-center h-full text-slate-400">
+                Please select a project to view settings.
+            </div>
+        );
+    }
+
     return (
         <div className="max-w-7xl mx-auto space-y-8 pb-12">
             {/* Header */}
             <div className="modern-card p-8">
                 <h1 className="text-4xl font-bold text-white mb-2">Settings</h1>
-                <p className="text-slate-400">Manage your project configuration and preferences</p>
+                <p className="text-slate-400">Manage configuration for <span className="text-blue-400">{currentProjectName}</span></p>
             </div>
 
             {/* Tabs & Content */}
@@ -47,152 +115,80 @@ const SettingsPage: React.FC = () => {
                 {/* Content Area */}
                 <div className="lg:col-span-3">
                     <div className="modern-card p-8">
-                        {/* General Settings */}
-                        {activeTab === 'general' && (
-                            <div className="space-y-6">
-                                <div>
-                                    <h3 className="text-xl font-bold text-white mb-4">Project Information</h3>
-                                    <div className="space-y-4">
+                        {isLoading ? (
+                            <div className="text-center py-10 text-slate-400">Loading settings...</div>
+                        ) : (
+                            <>
+                                {/* General Settings */}
+                                {activeTab === 'general' && (
+                                    <div className="space-y-6">
                                         <div>
-                                            <label htmlFor="projectName" className="block text-sm font-medium text-slate-400 mb-2">Project Name</label>
-                                            <input
-                                                id="projectName"
-                                                name="projectName"
-                                                type="text"
-                                                defaultValue="GitArena"
-                                                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label htmlFor="projectDescription" className="block text-sm font-medium text-slate-400 mb-2">Description</label>
-                                            <textarea
-                                                id="projectDescription"
-                                                name="projectDescription"
-                                                rows={3}
-                                                defaultValue="Team collaboration and productivity platform"
-                                                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="border-t border-slate-800 pt-6">
-                                    <h3 className="text-xl font-bold text-white mb-4">Preferences</h3>
-                                    <div className="space-y-4">
-                                        <label htmlFor="autoSync" className="flex items-center justify-between">
-                                            <span className="text-white">Enable auto-sync</span>
-                                            <input id="autoSync" name="autoSync" type="checkbox" className="toggle" defaultChecked />
-                                        </label>
-                                        <label htmlFor="publicFeed" className="flex items-center justify-between">
-                                            <span className="text-white">Public activity feed</span>
-                                            <input id="publicFeed" name="publicFeed" type="checkbox" className="toggle" />
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Team Settings */}
-                        {activeTab === 'team' && (
-                            <div className="space-y-6">
-                                <h3 className="text-xl font-bold text-white mb-4">Team Permissions</h3>
-                                <div className="space-y-4">
-                                    {[
-                                        { permission: 'Create repositories', manager: true, member: false },
-                                        { permission: 'Merge pull requests', manager: true, member: true },
-                                        { permission: 'Delete branches', manager: true, member: false },
-                                        { permission: 'View analytics', manager: true, member: true },
-                                    ].map((perm, index) => (
-                                        <div key={index} className="flex items-center justify-between p-4 bg-slate-800/50 rounded-lg">
-                                            <span className="text-white">{perm.permission}</span>
-                                            <div className="flex gap-6">
-                                                <label htmlFor={`perm-${index}-manager`} className="flex items-center gap-2 text-sm">
-                                                    <input id={`perm-${index}-manager`} name={`perm-${index}-manager`} type="checkbox" defaultChecked={perm.manager} />
-                                                    <span className="text-slate-400">Manager</span>
-                                                </label>
-                                                <label htmlFor={`perm-${index}-member`} className="flex items-center gap-2 text-sm">
-                                                    <input id={`perm-${index}-member`} name={`perm-${index}-member`} type="checkbox" defaultChecked={perm.member} />
-                                                    <span className="text-slate-400">Member</span>
-                                                </label>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Integrations */}
-                        {activeTab === 'integrations' && (
-                            <div className="space-y-6">
-                                <h3 className="text-xl font-bold text-white mb-4">Connected Services</h3>
-                                <div className="space-y-4">
-                                    {[
-                                        { name: 'GitHub', icon: '🐙', connected: true, status: 'Active' },
-                                    ].map((service) => (
-                                        <div key={service.name} className="flex items-center justify-between p-4 bg-slate-800/50 rounded-lg">
-                                            <div className="flex items-center gap-3">
-                                                <span className="text-3xl">{service.icon}</span>
+                                            <h3 className="text-xl font-bold text-white mb-4">Project Information</h3>
+                                            <div className="space-y-4">
                                                 <div>
-                                                    <span className="text-white font-medium block">{service.name}</span>
-                                                    <span className="text-xs text-green-400">{service.status}</span>
+                                                    <label htmlFor="projectName" className="block text-sm font-medium text-slate-400 mb-2">Project Name</label>
+                                                    <input
+                                                        id="projectName"
+                                                        name="projectName"
+                                                        type="text"
+                                                        value={formData.name}
+                                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label htmlFor="projectDescription" className="block text-sm font-medium text-slate-400 mb-2">Description</label>
+                                                    <textarea
+                                                        id="projectDescription"
+                                                        name="projectDescription"
+                                                        rows={3}
+                                                        value={formData.description}
+                                                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500"
+                                                    />
                                                 </div>
                                             </div>
-                                            <span className="px-3 py-1 bg-green-500/20 text-green-400 rounded-md text-sm font-medium">
-                                                Connected
-                                            </span>
                                         </div>
-                                    ))}
-                                    <div className="mt-6 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-                                        <p className="text-sm text-blue-300">
-                                            <strong>Note:</strong> Additional integrations (Slack, Jira, Discord) are planned for future releases.
-                                        </p>
+
+                                        <div className="border-t border-slate-800 pt-6">
+                                            <h3 className="text-xl font-bold text-white mb-4">Preferences</h3>
+                                            <div className="space-y-4">
+                                                <label htmlFor="autoSync" className="flex items-center justify-between">
+                                                    <span className="text-white">Enable auto-sync</span>
+                                                    <input id="autoSync" name="autoSync" type="checkbox" className="toggle" defaultChecked disabled />
+                                                </label>
+                                                <label htmlFor="publicFeed" className="flex items-center justify-between">
+                                                    <span className="text-white">Public activity feed</span>
+                                                    <input id="publicFeed" name="publicFeed" type="checkbox" className="toggle" disabled />
+                                                </label>
+                                                <p className="text-xs text-slate-500 mt-2">* Creating settings for preferences coming soon.</p>
+                                            </div>
+                                        </div>
+
+                                        {/* Save Button */}
+                                        <div className="mt-8 flex justify-end gap-3 border-t border-slate-800 pt-6">
+                                            <button className="btn-secondary" onClick={() => setActiveTab('general')}>Reset</button>
+                                            <button
+                                                className="btn-primary"
+                                                onClick={handleSave}
+                                                disabled={isSaving}
+                                            >
+                                                {isSaving ? 'Saving...' : 'Save Changes'}
+                                            </button>
+                                        </div>
                                     </div>
-                                </div>
-                            </div>
-                        )}
+                                )}
 
-                        {/* AI Settings */}
-                        {activeTab === 'ai' && (
-                            <div className="space-y-6">
-                                <h3 className="text-xl font-bold text-white mb-4">AI Configuration</h3>
-                                <div className="space-y-4">
-                                    <label htmlFor="aiInsights" className="flex items-center justify-between">
-                                        <div>
-                                            <div className="text-white font-medium">Enable AI Insights</div>
-                                            <div className="text-sm text-slate-400">Get intelligent recommendations</div>
-                                        </div>
-                                        <input id="aiInsights" name="aiInsights" type="checkbox" className="toggle" defaultChecked />
-                                    </label>
-                                    <label htmlFor="codeQuality" className="flex items-center justify-between">
-                                        <div>
-                                            <div className="text-white font-medium">Code Quality Analysis</div>
-                                            <div className="text-sm text-slate-400">Automatically analyze code quality</div>
-                                        </div>
-                                        <input id="codeQuality" name="codeQuality" type="checkbox" className="toggle" defaultChecked />
-                                    </label>
-                                    <label htmlFor="productivityInsights" className="flex items-center justify-between">
-                                        <div>
-                                            <div className="text-white font-medium">Productivity Insights</div>
-                                            <div className="text-sm text-slate-400">Track team productivity patterns</div>
-                                        </div>
-                                        <input id="productivityInsights" name="productivityInsights" type="checkbox" className="toggle" defaultChecked />
-                                    </label>
-                                </div>
-                            </div>
+                                {/* Other Tabs Placeholders */}
+                                {activeTab !== 'general' && (
+                                    <div className="text-center py-10">
+                                        <div className="text-4xl mb-4">🚧</div>
+                                        <h3 className="text-xl text-white font-bold mb-2">Under Construction</h3>
+                                        <p className="text-slate-400">Settings for {tabs.find(t => t.id === activeTab)?.label} are coming soon.</p>
+                                    </div>
+                                )}
+                            </>
                         )}
-
-                        {/* Save Button with Warning */}
-                        <div className="mt-8 space-y-4">
-                            <div className="p-4 bg-orange-500/10 border border-orange-500/30 rounded-lg">
-                                <p className="text-sm text-orange-300">
-                                    <strong>⚠️ Note:</strong> Settings functionality is currently in development. Changes will not be saved until backend integration is complete.
-                                </p>
-                            </div>
-                            <div className="flex gap-3 justify-end">
-                                <button className="btn-secondary" disabled>Cancel</button>
-                                <button className="btn-primary opacity-50 cursor-not-allowed" disabled>Save Changes (Coming Soon)</button>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>

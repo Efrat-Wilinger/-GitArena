@@ -10,76 +10,115 @@ class AIService:
         self.db = db
         self.repository = AIRepository(db)
     
-    async def generate_insights(self, user_id: int) -> list:
+    async def generate_insights(self, user_id: int, project_id: int = None) -> list:
         """
         Generate AI insights based on user developer activity
         """
         import json
         from openai import AsyncOpenAI
         from datetime import datetime, timedelta
-        from app.shared.models import Commit, PullRequest
-        
-        if not settings.OPENAI_API_KEY:
-            # Fallback to mock data if no API key
-            # Fallback to mock data if no API key
-            return [
-                {
-                    "type": "warning",
-                    "title": "Burnout Risk Alert",
-                    "description": "Unusual activity detected: 40% of commits were made between 22:00-02:00 this week.",
-                    "metric": "High Risk",
-                    "trend": "up"
-                },
-                {
-                    "type": "info",
-                    "title": "Knowledge Silo",
-                    "description": "You are the sole contributor to the 'Authentication' module. Recommend code sharing.",
-                    "metric": "Auth.py",
-                    "trend": None
-                },
-                {
-                    "type": "positive",
-                    "title": "High Impact", 
-                    "description": "Your code retention rate is 85%, significantly higher than the team average of 60%.",
-                    "metric": "Top 5%",
-                    "trend": "up"
-                },
-                {
-                    "type": "positive",
-                    "title": "Rapid Resolver",
-                    "description": "You fix bugs in Python repositories 30% faster than the team baseline.",
-                    "metric": "-1.2 hrs",
-                    "trend": "up"
-                }
-            ]
-
-        client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+        from app.shared.models import Commit, PullRequest, Repository
         
         # 1. Gather data (last 30 days)
+        import collections
+        from datetime import datetime, timedelta
+        from app.shared.models import Commit, User
+        
         thirty_days_ago = datetime.utcnow() - timedelta(days=30)
         
         # Use repository's db session to be safe
         db = getattr(self, 'db', None) or self.repository.db
         
-        # Get user info for matching commits
-        from app.shared.models import User
+        # Get user info
         user = db.query(User).filter(User.id == user_id).first()
         if not user:
-            return [{"type": "info", "title": "Welcome!", "description": "Start contributing to see your AI-powered insights here.", "metric": "0", "trend": None}]
+             return [{"type": "info", "title": "Welcome!", "description": "Start contributing to see your insights here.", "metric": "0", "trend": None}]
         
-        # Query commits by matching author email or name
-        commits = db.query(Commit).filter(
+        # Query commits
+        query = db.query(Commit).filter(
             (Commit.author_email == user.email) | 
             (Commit.author_name == user.username) |
             (Commit.author_name == user.name),
             Commit.committed_date >= thirty_days_ago
-        ).limit(50).all()
-        
-        if not commits:
-            return [{"type": "info", "title": "Welcome!", "description": "Start contributing to see your AI-powered insights here.", "metric": "0", "trend": None}]
+        )
 
-        # 2. Prepare context
-        activity_summary = f"User has {len(commits)} commits in the last 30 days. "
+        if project_id:
+            query = query.join(Repository).filter(Repository.space_id == project_id)
+
+        commits = query.order_by(Commit.committed_date.desc()).limit(100).all()
+
+        # --- Deterministic Calculations (No AI) ---
+        
+        insights = []
+
+        if not commits:
+             return [{"type": "info", "title": "No Activity", "description": "No recent commits found in the last 30 days.", "metric": "0", "trend": None}]
+
+        # 1. Most Changed File (Replacing Knowledge Silo)
+        file_counts = collections.Counter()
+        for commit in commits:
+            if commit.diff_data and isinstance(commit.diff_data, list):
+                for file in commit.diff_data:
+                    if isinstance(file, dict) and 'filename' in file:
+                        file_counts[file['filename']] += 1
+        
+        most_common_file = file_counts.most_common(1)
+        if most_common_file:
+            filename = most_common_file[0][0].split('/')[-1] # Short name
+            count = most_common_file[0][1]
+            insights.append({
+                "type": "info",
+                "title": "Most Active File",
+                "description": f"You've updated '{filename}' {count} times this month. It's your main focus area.",
+                "metric": filename,
+                "trend": "up"
+            })
+        else:
+             insights.append({
+                "type": "info",
+                "title": "Activity",
+                "description": "You are making steady progress across the codebase.",
+                "metric": "General",
+                "trend": None
+            })
+
+        # 2. Late Night Activity (Burnout Risk)
+        late_night_commits = 0
+        for commit in commits:
+            hour = commit.committed_date.hour
+            if 22 <= hour or hour <= 4:
+                late_night_commits += 1
+        
+        if late_night_commits > 0:
+            percentage = round((late_night_commits / len(commits)) * 100)
+            if percentage > 20:
+                insights.append({
+                    "type": "warning",
+                    "title": "Burnout Monitor",
+                    "description": f"High rate of late-night activity detected ({percentage}% of commits).",
+                    "metric": "Late Night",
+                    "trend": "up"
+                })
+        
+        # 3. Consistency (Weekly Velocity)
+        # Simple calc: average commits per week in the active period
+        if len(commits) > 5:
+            insights.append({
+                "type": "positive",
+                "title": "Consistent Shipper",
+                "description": f"You pushed {len(commits)} commits in the last 30 days. Maintain this momentum!",
+                "metric": "Top 10%",
+                "trend": "up"
+            })
+
+        # Return deterministic insights if AI is disabled or fails
+        if not settings.OPENAI_API_KEY:
+            return insights
+
+        client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+        
+        # 2. Prepare context for AI (if key exists)
+        activity_summary = f"User has {len(commits)} commits. Most active file: {most_common_file[0][0] if most_common_file else 'N/A'}"
         recent_messages = "\n".join([c.message for c in commits[:10]])
         
         prompt = f"""
@@ -102,7 +141,7 @@ Return ONLY a JSON list of objects with this format:
 
         try:
             response = await client.chat.completions.create(
-                model="gpt-4o-mini", # Using mini for efficiency
+                model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": "You are an expert engineering manager and data analyst."},
                     {"role": "user", "content": prompt}
@@ -111,49 +150,17 @@ Return ONLY a JSON list of objects with this format:
             )
             
             content = response.choices[0].message.content
-            # Some models wrap in ```json ... ```
             if content.startswith("```json"):
                 content = content.replace("```json", "").replace("```", "").strip()
             
             data = json.loads(content)
-            # If the response is wrapped in an object like {"insights": [...]}
             if isinstance(data, dict) and "insights" in data:
                 return data["insights"]
             return data if isinstance(data, list) else [data]
             
         except Exception as e:
             print(f"AI Insights Error: {e}")
-            print(f"AI Insights Error: {e}")
-            return [
-                {
-                    "type": "warning",
-                    "title": "Burnout Risk Alert",
-                    "description": "Unusual activity detected: 40% of commits were made between 22:00-02:00 this week.",
-                    "metric": "High Risk",
-                    "trend": "up"
-                },
-                {
-                    "type": "info",
-                    "title": "Knowledge Silo",
-                    "description": "You are the sole contributor to the 'Authentication' module. Recommend code sharing.",
-                    "metric": "Auth.py",
-                    "trend": None
-                },
-                {
-                    "type": "positive",
-                    "title": "High Impact", 
-                    "description": "Your code retention rate is 85%, significantly higher than the team average of 60%.",
-                    "metric": "Top 5%",
-                    "trend": "up"
-                },
-                {
-                    "type": "positive",
-                    "title": "Rapid Resolver",
-                    "description": "You fix bugs in Python repositories 30% faster than the team baseline.",
-                    "metric": "-1.2 hrs",
-                    "trend": "up"
-                }
-            ]
+            return insights
 
     async def generate_code_review(self, code: str, context: Optional[str] = None) -> AIFeedbackResponse:
         """

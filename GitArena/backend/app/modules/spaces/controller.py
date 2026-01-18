@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from app.shared.database import get_db
 from app.modules.spaces.service import SpaceService
-from app.modules.spaces.dto import SpaceCreate, SpaceResponse, SpaceDashboardResponse
+from app.modules.spaces.dto import SpaceCreate, SpaceUpdate, SpaceResponse, SpaceDashboardResponse
 from app.modules.users.controller import get_current_user
 from app.modules.users.dto import UserResponse
 from app.modules.users.repository import UserRepository
@@ -27,9 +27,21 @@ async def create_space(
     # Use smart logic: Join existing if repo matches, or create new
     result = await service.join_or_create_space(space_data, current_user.id, user.access_token)
     
-    # Check action to determine response code/message if needed, but for now just return the space
     # The frontend expects a SpaceResponse, so we return the 'space' part of the dict
     return result["space"]
+
+@router.put("/{space_id}", response_model=SpaceResponse)
+async def update_space(
+    space_id: int,
+    space_data: SpaceUpdate,
+    current_user: UserResponse = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update space details"""
+    service = SpaceService(db)
+    # Note: Using update_space which expects SpaceCreate-like structure
+    # Ideally should use SpaceUpdate DTO but SpaceCreate works for name/desc
+    return service.update_space(space_id, space_data, current_user.id)
 
 @router.post("/connect", response_model=dict)
 async def connect_repository(
@@ -60,6 +72,22 @@ def get_my_spaces(
     """Get all spaces the user owns or is a member of"""
     service = SpaceService(db)
     return service.get_my_spaces(current_user.id)
+
+@router.get("/{space_id}", response_model=SpaceResponse)
+def get_space_details(
+    space_id: int,
+    current_user: UserResponse = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get details of a specific space"""
+    service = SpaceService(db)
+    space = service.repository.get_space_by_id(space_id)
+    if not space:
+        raise HTTPException(status_code=404, detail="Space not found")
+    # Add permission check if strictly needed, but basic membership check is good practice
+    if not service.repository.is_member(space_id, current_user.id) and space.owner_id != current_user.id:
+         raise HTTPException(status_code=403, detail="Not authorized to view this space")
+    return SpaceResponse.model_validate(space)
 
 @router.get("/{space_id}/dashboard", response_model=SpaceDashboardResponse)
 async def get_space_dashboard(

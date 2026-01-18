@@ -7,6 +7,7 @@ interface KnowledgeBaseMetrics {
     last_update: string | null;
     readme_exists: boolean;
     contributing_exists: boolean;
+    license_exists: boolean;
     documentation_ratio: number;
     recent_updates_count: number;
 }
@@ -111,6 +112,22 @@ export const KnowledgeBaseWidget: React.FC<KnowledgeBaseWidgetProps> = ({ projec
                         <span className="text-slate-300">CONTRIBUTING.md</span>
                     </div>
                     {data.contributing_exists ? (
+                        <span className="text-green-400 text-sm font-bold flex items-center gap-1">
+                            ✅ Present
+                        </span>
+                    ) : (
+                        <span className="text-red-400 text-sm font-bold flex items-center gap-1">
+                            Missing
+                        </span>
+                    )}
+                </div>
+
+                <div className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                        <span className="text-xl">⚖️</span>
+                        <span className="text-slate-300">LICENSE</span>
+                    </div>
+                    {data.license_exists ? (
                         <span className="text-green-400 text-sm font-bold flex items-center gap-1">
                             ✅ Present
                         </span>

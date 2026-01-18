@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, Any
 from datetime import datetime
 
 
@@ -83,14 +83,15 @@ class KnowledgeBaseMetrics(BaseModel):
     contributing_exists: bool
     documentation_ratio: float # Percentage of commits touching docs
     recent_updates_count: int
+    license_exists: Optional[bool] = False
     
     class Config:
         from_attributes = True
 
 
 class MemberLoad(BaseModel):
-    user_id: int
-    username: str
+    user_id: Optional[str] = None
+    username: Optional[str] = None
     avatar_url: Optional[str] = None
     velocity: float # Daily commit average
     status: str # "Overloaded", "Optimal", "Underutilized"
@@ -102,3 +103,38 @@ class TeamCapacityResponse(BaseModel):
     predicted_sprint_output: int # Estimated commits for next 2 weeks
     sprint_risk: str # "Low", "Medium", "High"
     member_loads: List[MemberLoad]
+
+# New DTOs for Dora and Burnout
+
+class DoraData(BaseModel):
+    deploymentFrequency: float
+    leadTime: float
+    failureRate: float
+    mttr: float
+    deploymentsHistory: List[Dict[str, Any]]
+    leadTimeHistory: List[Dict[str, Any]]
+    
+    # Vitality Metrics
+    totalCommits: Optional[int] = 0
+    totalLoc: Optional[int] = 0
+    avgCommitSize: Optional[int] = 0
+    contributorsCount: Optional[int] = 0
+
+class DoraMetricsResponse(BaseModel):
+    data: DoraData
+
+class BurnoutMember(BaseModel):
+    name: str
+    avatar: Optional[str] = None
+    riskScore: int
+    status: str
+    factors: List[str]
+    recentStressors: List[str]
+    metrics: Dict[str, int]
+
+class BurnoutData(BaseModel):
+    members: List[BurnoutMember]
+    overallRisk: int
+
+class BurnoutMetricsResponse(BaseModel):
+    data: BurnoutData
