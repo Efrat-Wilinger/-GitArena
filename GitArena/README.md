@@ -1,25 +1,90 @@
+<div align="center">
+
 # 🏟️ GitArena
 
-> **Where Code Meets Gaming.** Transform your development workflow into an immersive RPG experience.
+### GitHub Analytics & AI Platform
+
+*Empowering developers and teams with actionable insights from their GitHub repositories*
 
 ![Status](https://img.shields.io/badge/Status-Online-success?style=for-the-badge&logo=statuspage)
 ![Stack](https://img.shields.io/badge/Stack-Fullstack-blue?style=for-the-badge&logo=react)
 ![License](https://img.shields.io/badge/License-MIT-purple?style=for-the-badge)
+[![GitHub](https://img.shields.io/badge/GitHub-Repository-blue?logo=github)](https://github.com/Efrat-Wilinger/-GitArena)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
+
+[Features](#-features) • [Quick Start](#-quick-start) • [Architecture](#-architecture--schema) • [Team](#-team)
+
+</div>
 
 ---
 
-## 🌟 Introduction
+## 📋 Table of Contents
 
-**GitArena** isn't just a dashboard; it's a **productivity engine**. By Gamifying the software development lifecycle, we turn every commit, pull request, and code review into a quest for excellence.
+- [About](#-about)
+- [Features](#-features)
+- [Architecture & Schema](#%EF%B8%8F-architecture--schema)
+- [Technology Stack](#-technology-stack)
+- [Quick Start](#-quick-start)
+- [Project Structure](#-project-structure)
+- [API Documentation](#-api-documentation)
+- [Development](#-development)
+- [Contributing](#-contributing)
 
-The system adapts its interface based on your role (`manager` or `member`), providing tailored experiences for leadership and individual contributors.
+---
+
+## 🎯 About
+
+**GitArena** is a comprehensive GitHub analytics platform that transforms raw repository data into meaningful insights. Built for developers and teams who want to understand their development patterns, improve code quality, and enhance collaboration.
+
+### 🎖️ Sprint 1 - Complete ✅
+Our first sprint delivers the foundation:
+- ✅ **Story 205**: GitHub OAuth Login with JWT authentication
+- ✅ **Story 207**: Repository selection and synchronization
+- ✅ **Story 210**: Commit pulling and daily sync automation
+- ✅ **Story 239**: Docker Compose infrastructure
 
 ---
 
 ## 🏗️ Architecture & Schema
 
-### 🧠 Database Schema (ERD)
+### ⚡ System Architecture
+The system runs on a containerized microservices-like architecture managed by Docker Compose.
 
+```mermaid
+graph TD
+    subgraph Client ["Client Side"]
+        Browser["User Browser"]
+    end
+
+    subgraph Docker ["Docker Environment"]
+        FE["Frontend Container (React/Vite)"]
+        BE["Backend Container (FastAPI)"]
+        DB[("PostgreSQL Database")]
+        PG["PGAdmin (DB Management)"]
+    end
+
+    subgraph External ["External Services"]
+        GH["GitHub API"]
+        AI["AI Service / LLM"]
+    end
+
+    Browser -->|HTTP/3000| FE
+    FE -->|API/8000| BE
+    
+    BE -->|SQL/5432| DB
+    PG -->|SQL/5432| DB
+    
+    BE -->|REST| GH
+    BE -->|REST| AI
+    
+    style FE fill:#61dafb,stroke:#333,color:#000
+    style BE fill:#009688,stroke:#333,color:#fff
+    style DB fill:#336791,stroke:#333,color:#fff
+    style AI fill:#000000,stroke:#333,color:#fff
+    style GH fill:#24292e,stroke:#333,color:#fff
+```
+
+### 🧠 Database Schema (ERD)
 A live visualization of our data relationships. The `User` is at the center, managing `Spaces` and contributing to `Repositories`.
 
 ```mermaid
@@ -69,101 +134,99 @@ erDiagram
         string author_name
         json diff_data
     }
-
-    AIFeedback {
-        int id
-        string feedback_type
-        float code_quality_score
-        float velocity_score
-    }
-```
-
-### ⚡ System Architecture
-
-The system runs on a containerized microservices-like architecture managed by Docker Compose.
-
-```mermaid
-graph TD
-    subgraph Client ["Client Side"]
-        Browser["User Browser"]
-    end
-
-    subgraph Docker ["Docker Environment"]
-        FE["Frontend Container (React/Vite)"]
-        BE["Backend Container (FastAPI)"]
-        DB[("PostgreSQL Database")]
-        PG["PGAdmin (DB Management)"]
-    end
-
-    subgraph External ["External Services"]
-        GH["GitHub API"]
-        AI["OpenAI API"]
-    end
-
-    Browser -->|HTTP/3000| FE
-    FE -->|API/8000| BE
-    
-    BE -->|SQL/5432| DB
-    PG -->|SQL/5432| DB
-    
-    BE -->|REST| GH
-    BE -->|REST| AI
-    
-    style FE fill:#61dafb,stroke:#333,color:#000
-    style BE fill:#009688,stroke:#333,color:#fff
-    style DB fill:#336791,stroke:#333,color:#fff
-    style AI fill:#000000,stroke:#333,color:#fff
-    style GH fill:#24292e,stroke:#333,color:#fff
 ```
 
 ---
 
-## 🚀 Speed Run (Quick Start)
+## ✨ Features
 
-### 📋 Prerequisites
+### 🔐 Authentication & Security
+- **GitHub OAuth Integration** - Seamless login with your GitHub account
+- **JWT Authentication** - Secure token-based authentication
+- **Role-Based Access Control** - Manage team permissions
+
+### 📊 Analytics Dashboard
+- **Repository Insights** - Track commits, PRs, and code changes
+- **Team Metrics** - Understand collaboration patterns
+- **Activity Tracking** - Monitor development velocity
+- **Visual Reports** - Beautiful charts and graphs
+
+### 🔄 Synchronization
+- **Automatic Sync** - Daily repository updates
+- **On-Demand Refresh** - Manual sync when needed
+
+---
+
+## 🛠️ Technology Stack
+
+<table>
+<tr>
+<td width="50%">
+
+### Backend
+- ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white) **FastAPI** - Modern, fast web framework
+- ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Latest-4169E1?logo=postgresql&logoColor=white) **PostgreSQL** - Robust database
+- ![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-ORM-red) **SQLAlchemy** - Powerful ORM
+- ![Alembic](https://img.shields.io/badge/Alembic-Migrations-orange) **Alembic** - Database migrations
+
+</td>
+<td width="50%">
+
+### Frontend
+- ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black) **React 18** - UI framework
+- ![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6?logo=typescript&logoColor=white) **TypeScript** - Type safety
+- ![Vite](https://img.shields.io/badge/Vite-Latest-646CFF?logo=vite&logoColor=white) **Vite** - Lightning-fast builds
+- ![TailwindCSS](https://img.shields.io/badge/Tailwind-CSS-06B6D4?logo=tailwindcss&logoColor=white) **TailwindCSS** - Utility-first styling
+- ![Recharts](https://img.shields.io/badge/Recharts-Visualization-8884d8) **Recharts** - Data visualization
+
+</td>
+</tr>
+</table>
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
 *   [Docker Desktop](https://www.docker.com/products/docker-desktop/) 🐳
-*   [Node.js 18+](https://nodejs.org/) (for local dev without Docker)
-*   [Python 3.12](https://www.python.org/) (for local dev without Docker)
+*   [Node.js 20+](https://nodejs.org/) (for local dev without Docker)
 *   GitHub OAuth App Credentials 🔑
 
-### 🛠️ Installation Guide
+### 1️⃣ Setup GitHub OAuth App
+1. Navigate to [GitHub Developer Settings](https://github.com/settings/developers)
+2. Click **"New OAuth App"**
+3. Fill in the details:
+   ```
+   Application name: GitArena
+   Homepage URL: http://localhost:3000
+   Authorization callback URL: http://localhost:3000/auth/callback
+   ```
+4. Copy your **Client ID** and generate a **Client Secret**.
 
-Follow these steps to set up the project on a new machine.
-
-#### 1. Clone the Repository
+### 2️⃣ Clone & Configure
 ```bash
 git clone <repo_url>
 cd GitArena
 ```
 
-#### 2. Configure Environment Variables
+### 3️⃣ Configure Environment
 You need to set up the secrets for both Frontend and Backend.
 
 **Backend (`/backend/.env`):**
 ```bash
-# Copy the example file
 cd backend
 cp .env.example .env
+# Edit .env with your DATABASE_URL and GITHUB credentials
 ```
-*Edit `.env` and fill in:*
-*   `DATABASE_URL`: `postgresql://postgres:newpassword123@db:5432/gitarena`
-*   `SECRET_KEY`: (Generate a random string)
-*   `GITHUB_CLIENT_ID`: (From GitHub Developer Settings)
-*   `GITHUB_CLIENT_SECRET`: (From GitHub Developer Settings)
-*   `OPENAI_API_KEY`: (Your OpenAI Key)
 
 **Frontend (`/frontend/.env`):**
 ```bash
-# Copy the example file
 cd ../frontend
 cp .env.example .env
+# Edit .env and ensure VITE_API_URL=http://localhost:8000
 ```
-*Edit `.env` and fill in:*
-*   `VITE_API_URL`: `http://localhost:8000`
 
-#### 3. Launch with Docker (Recommended)
-This will start the Database, Backend, and Frontend containers.
-
+### 4️⃣ Launch with Docker
 ```bash
 cd ..
 docker-compose up --build -d
@@ -171,37 +234,76 @@ docker-compose up --build -d
 *   Wait a few minutes for the build to complete.
 *   The database will automatically initialize.
 
-#### 4. Verify Installation
-*   **Frontend**: Open [http://localhost:3000](http://localhost:3000)
-*   **Backend API Docs**: Open [http://localhost:8000/docs](http://localhost:8000/docs)
-*   **PGAdmin**: Open [http://localhost:5050](http://localhost:5050) (Login: `efrat.wilinger@gmail.com` / `12345`)
+### 5️⃣ Access the Application
+| Service | URL | Description |
+|---------|-----|-------------|
+| 🌐 **Frontend** | http://localhost:3000 | Main application |
+| 🔧 **Backend API** | http://localhost:8000 | REST API |
+| 📚 **API Docs** | http://localhost:8000/docs | Interactive API documentation |
+| 🗄️ **Database Admin** | http://localhost:5050 | PGAdmin (Login: `efrat.wilinger@gmail.com` / `12345`) |
 
 ---
 
-## 🧪 Running Tests
+## 📁 Project Structure
 
-To ensure everything is working correctly:
-
-```bash
-# Run Backend Tests
-docker-compose exec backend pytest
-
-# Run Frontend Linting
-cd frontend
-npm run lint
 ```
+GitArena/
+│
+├── 🔙 backend/                    # Python FastAPI Backend
+│   ├── app/
+│   │   ├── modules/              # Domain modules (users, analytics, spaces)
+│   │   ├── shared/               # Shared logic (DB, Auth, Models)
+│   │   └── main.py               # App entry
+│   └── tests/                    # Backend tests
+│
+├── 🎨 frontend/                   # React TypeScript Frontend
+│   ├── src/
+│   │   ├── api/                  # API clients
+│   │   ├── components/           # Reusable UI components
+│   │   └── pages/                # Route pages
+│   └── Dockerfile
+│
+├── 🐳 docker-compose.yml         # Container orchestration
+└── 📖 README.md                  # You are here!
+```
+
+---
+
+## 📚 API Documentation
+
+### 🔐 Authentication
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/auth/github/login` | Initiate GitHub OAuth flow |
+| `GET` | `/auth/github/callback` | OAuth callback handler |
+
+### 📊 Analytics
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/analytics/dashboard` | Get dashboard statistics |
+| `GET` | `/analytics/activity` | Get activity metrics |
+| `GET` | `/analytics/manager/team` | Get team performance stats |
+
+> 💡 **Tip**: Visit [http://localhost:8000/docs](http://localhost:8000/docs) for full interactive documentation.
 
 ---
 
 ## 🤝 Contributing
 
-We are looking for contributors!
-1.  Fork the Quest.
-2.  Create your Feature Branch (`git checkout -b feature/EpicLoot`).
-3.  Open a Pull Request.
+We welcome contributions!
+1. 🍴 Fork the repository
+2. 🌿 Create a feature branch (`git checkout -b feature/AmazingFeature`)
+3. 💾 Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. 🔀 Open a Pull Request
 
 ---
 
-<p align="center">
-  Made with ⚔️ and 🛡️ by the <b>GitArena Team</b>
-</p>
+<div align="center">
+
+### 🌟 Star us on GitHub!
+
+If you find GitArena useful, please consider giving it a star ⭐
+
+[⬆ Back to Top](#️-gitarena)
+
+</div>

@@ -6,13 +6,13 @@
 
 *Empowering developers and teams with actionable insights from their GitHub repositories*
 
+![Status](https://img.shields.io/badge/Status-Online-success?style=for-the-badge&logo=statuspage)
+![Stack](https://img.shields.io/badge/Stack-Fullstack-blue?style=for-the-badge&logo=react)
+![License](https://img.shields.io/badge/License-MIT-purple?style=for-the-badge)
 [![GitHub](https://img.shields.io/badge/GitHub-Repository-blue?logo=github)](https://github.com/Efrat-Wilinger/-GitArena)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.104-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](https://reactjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 
-[Features](#-features) • [Quick Start](#-quick-start) • [Documentation](#-documentation) • [Team](#-team)
+[Features](#-features) • [Quick Start](#-quick-start) • [Architecture](#-architecture--schema) • [Team](#-team)
 
 </div>
 
@@ -22,14 +22,13 @@
 
 - [About](#-about)
 - [Features](#-features)
+- [Architecture & Schema](#%EF%B8%8F-architecture--schema)
 - [Technology Stack](#-technology-stack)
 - [Quick Start](#-quick-start)
 - [Project Structure](#-project-structure)
 - [API Documentation](#-api-documentation)
 - [Development](#-development)
-- [Testing](#-testing)
 - [Contributing](#-contributing)
-- [Team](#-team)
 
 ---
 
@@ -38,32 +37,104 @@
 **GitArena** is a comprehensive GitHub analytics platform that transforms raw repository data into meaningful insights. Built for developers and teams who want to understand their development patterns, improve code quality, and enhance collaboration.
 
 ### 🎖️ Sprint 1 - Complete ✅
-
 Our first sprint delivers the foundation:
-
 - ✅ **Story 205**: GitHub OAuth Login with JWT authentication
 - ✅ **Story 207**: Repository selection and synchronization
 - ✅ **Story 210**: Commit pulling and daily sync automation
-- ✅ **Story 212**: User profile management
 - ✅ **Story 239**: Docker Compose infrastructure
-- ✅ **Story 249**: Git repository initialization
 
 ---
 
-## 📸 Screenshots
+## 🏗️ Architecture & Schema
 
-<div align="center">
+### ⚡ System Architecture
+The system runs on a containerized microservices-like architecture managed by Docker Compose.
 
-### Experience GitArena's Modern Interface
+```mermaid
+graph TD
+    subgraph Client ["Client Side"]
+        Browser["User Browser"]
+    end
 
-*Screenshots coming soon! The application features:*
+    subgraph Docker ["Docker Environment"]
+        FE["Frontend Container (React/Vite)"]
+        BE["Backend Container (FastAPI)"]
+        DB[("PostgreSQL Database")]
+        PG["PGAdmin (DB Management)"]
+    end
 
-- **Login Page** - Secure GitHub OAuth authentication with glassmorphism effects
-- **Dashboard** - Comprehensive analytics with beautiful charts and stat cards
-- **Repositories** - Manage and sync your GitHub repos with colorful language badges
-- **Profile** - Track your development activity with gradient cover banner
+    subgraph External ["External Services"]
+        GH["GitHub API"]
+        AI["AI Service / LLM"]
+    end
 
-</div>
+    Browser -->|HTTP/3000| FE
+    FE -->|API/8000| BE
+    
+    BE -->|SQL/5432| DB
+    PG -->|SQL/5432| DB
+    
+    BE -->|REST| GH
+    BE -->|REST| AI
+    
+    style FE fill:#61dafb,stroke:#333,color:#000
+    style BE fill:#009688,stroke:#333,color:#fff
+    style DB fill:#336791,stroke:#333,color:#fff
+    style AI fill:#000000,stroke:#333,color:#fff
+    style GH fill:#24292e,stroke:#333,color:#fff
+```
+
+### 🧠 Database Schema (ERD)
+A live visualization of our data relationships. The `User` is at the center, managing `Spaces` and contributing to `Repositories`.
+
+```mermaid
+erDiagram
+    User ||--o{ Space : owns
+    User ||--o{ SpaceMember : has_membership
+    User ||--o{ Repository : owns
+    User ||--o{ AIFeedback : receives
+
+    Space ||--o{ SpaceMember : contains
+    Space ||--o{ Repository : manages
+    Space ||--o{ Quest : tracks
+
+    Repository ||--o{ Commit : tracks
+    Repository ||--o{ PullRequest : contains
+    Repository ||--o{ Issue : tracks
+    Repository ||--o{ Release : has
+    Repository ||--o{ Deployment : has
+    Repository ||--o{ AnalyticsActivity : metrics
+    Repository ||--o{ AnalyticsQuality : metrics
+    Repository ||--o{ AnalyticsCollaboration : metrics
+
+    PullRequest ||--o{ Review : has
+
+    User {
+        int id
+        string username
+        string role
+        string github_login
+    }
+
+    Space {
+        int id
+        string name
+        int owner_id
+    }
+
+    Repository {
+        int id
+        string name
+        boolean is_synced
+    }
+
+    Commit {
+        int id
+        string sha
+        string author_name
+        json diff_data
+    }
+```
 
 ---
 
@@ -80,15 +151,9 @@ Our first sprint delivers the foundation:
 - **Activity Tracking** - Monitor development velocity
 - **Visual Reports** - Beautiful charts and graphs
 
-### 🤖 AI-Powered Features *(Coming Soon)*
-- Code review suggestions
-- Pattern detection
-- Quality recommendations
-
 ### 🔄 Synchronization
 - **Automatic Sync** - Daily repository updates
 - **On-Demand Refresh** - Manual sync when needed
-- **Webhook Support** *(Planned)*
 
 ---
 
@@ -103,7 +168,6 @@ Our first sprint delivers the foundation:
 - ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Latest-4169E1?logo=postgresql&logoColor=white) **PostgreSQL** - Robust database
 - ![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-ORM-red) **SQLAlchemy** - Powerful ORM
 - ![Alembic](https://img.shields.io/badge/Alembic-Migrations-orange) **Alembic** - Database migrations
-- ![JWT](https://img.shields.io/badge/JWT-Auth-000000?logo=jsonwebtokens) **JWT** - Secure authentication
 
 </td>
 <td width="50%">
@@ -119,25 +183,15 @@ Our first sprint delivers the foundation:
 </tr>
 </table>
 
-### DevOps & Tools
-- 🐳 **Docker & Docker Compose** - Containerization
-- 🔄 **GitHub Actions** - CI/CD pipeline
-- 🧪 **pytest** - Backend testing
-- 📦 **npm** - Package management
-
 ---
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-
-Before you begin, ensure you have:
-- ✅ [Docker](https://www.docker.com/get-started) and Docker Compose installed
-- ✅ A GitHub account
-- ✅ GitHub OAuth App credentials (see setup below)
+*   [Docker Desktop](https://www.docker.com/products/docker-desktop/) 🐳
+*   GitHub OAuth App Credentials 🔑
 
 ### 1️⃣ Setup GitHub OAuth App
-
 1. Navigate to [GitHub Developer Settings](https://github.com/settings/developers)
 2. Click **"New OAuth App"**
 3. Fill in the details:
@@ -146,57 +200,46 @@ Before you begin, ensure you have:
    Homepage URL: http://localhost:3000
    Authorization callback URL: http://localhost:3000/auth/callback
    ```
-4. Click **"Register application"**
-5. Copy your **Client ID** and generate a **Client Secret**
+4. Copy your **Client ID** and generate a **Client Secret**.
 
 ### 2️⃣ Clone & Configure
-
 ```bash
-# Clone the repository
-git clone https://github.com/Efrat-Wilinger/-GitArena.git
-cd -GitArena
-
-# Copy environment template
-cp .env.example .env
+git clone <repo_url>
+cd GitArena
 ```
 
 ### 3️⃣ Configure Environment
+You need to set up the secrets for both Frontend and Backend.
 
-Edit `.env` and add your credentials:
-
-```env
-# GitHub OAuth
-GITHUB_CLIENT_ID=your_github_client_id
-GITHUB_CLIENT_SECRET=your_github_client_secret
-
-# Security
-SECRET_KEY=your_super_secret_key_here
-
-# Database
-DATABASE_URL=postgresql://gitarena:gitarena@db:5432/gitarena
-
-# API
-API_URL=http://localhost:8000
-```
-
-### 4️⃣ Launch Application
-
+**Backend (`/backend/.env`):**
 ```bash
-# Start all services
-docker-compose up --build
-
-# Or run in detached mode
-docker-compose up -d --build
+cd backend
+cp .env.example .env
+# Edit .env with your DATABASE_URL and GITHUB credentials
 ```
+
+**Frontend (`/frontend/.env`):**
+```bash
+cd ../frontend
+cp .env.example .env
+# Edit .env and ensure VITE_API_URL=http://localhost:8000
+```
+
+### 4️⃣ Launch with Docker
+```bash
+cd ..
+docker-compose up --build -d
+```
+*   Wait a few minutes for the build to complete.
+*   The database will automatically initialize.
 
 ### 5️⃣ Access the Application
-
 | Service | URL | Description |
 |---------|-----|-------------|
 | 🌐 **Frontend** | http://localhost:3000 | Main application |
 | 🔧 **Backend API** | http://localhost:8000 | REST API |
 | 📚 **API Docs** | http://localhost:8000/docs | Interactive API documentation |
-| 🗄️ **Database** | localhost:5432 | PostgreSQL (internal) |
+| 🗄️ **Database Admin** | http://localhost:5050 | PGAdmin (Login: `efrat.wilinger@gmail.com` / `12345`) |
 
 ---
 
@@ -207,48 +250,19 @@ GitArena/
 │
 ├── 🔙 backend/                    # Python FastAPI Backend
 │   ├── app/
-│   │   ├── modules/
-│   │   │   ├── github/           # GitHub integration & sync
-│   │   │   ├── users/            # User management & auth
-│   │   │   ├── analytics/        # Analytics & dashboards
-│   │   │   ├── spaces/           # Team spaces
-│   │   │   └── ai/               # AI features (placeholder)
-│   │   ├── shared/
-│   │   │   ├── database.py       # DB connection
-│   │   │   ├── models.py         # SQLAlchemy models
-│   │   │   ├── security.py       # JWT & auth utilities
-│   │   │   └── middleware.py     # Error handling
-│   │   ├── config/
-│   │   │   └── settings.py       # Configuration
-│   │   └── main.py               # FastAPI app entry
-│   ├── migrations/               # Alembic migrations
-│   ├── devops/
-│   │   └── cron_sync.py          # Daily sync job
-│   ├── tests/                    # Unit tests
-│   ├── requirements.txt
-│   └── Dockerfile
+│   │   ├── modules/              # Domain modules (users, analytics, spaces)
+│   │   ├── shared/               # Shared logic (DB, Auth, Models)
+│   │   └── main.py               # App entry
+│   └── tests/                    # Backend tests
 │
 ├── 🎨 frontend/                   # React TypeScript Frontend
 │   ├── src/
-│   │   ├── api/                  # API client layer
-│   │   ├── components/           # Reusable components
-│   │   ├── pages/                # Page components
-│   │   │   ├── LoginPage.tsx
-│   │   │   ├── ProfilePage.tsx
-│   │   │   ├── RepositoriesPage.tsx
-│   │   │   └── CommitsPage.tsx
-│   │   ├── App.tsx
-│   │   └── main.tsx
-│   ├── package.json
-│   ├── vite.config.ts
-│   ├── tailwind.config.js
+│   │   ├── api/                  # API clients
+│   │   ├── components/           # Reusable UI components
+│   │   └── pages/                # Route pages
 │   └── Dockerfile
 │
-├── 🔄 .github/
-│   └── workflows/
-│       └── ci.yml                # GitHub Actions CI
-│
-├── 🐳 docker-compose.yml         # Docker orchestration
+├── 🐳 docker-compose.yml         # Container orchestration
 └── 📖 README.md                  # You are here!
 ```
 
@@ -257,238 +271,29 @@ GitArena/
 ## 📚 API Documentation
 
 ### 🔐 Authentication
-
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `POST` | `/auth/github/login` | Initiate GitHub OAuth flow |
 | `GET` | `/auth/github/callback` | OAuth callback handler |
 
-### 👤 Users
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/users/me` | Get current user profile |
-| `GET` | `/users/{user_id}` | Get user by ID |
-
-### 🐙 GitHub Integration
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/github/repos` | List user repositories |
-| `POST` | `/github/repos/sync` | Sync repositories from GitHub |
-| `GET` | `/github/repos/{repo_id}/commits` | Get repository commits |
-
 ### 📊 Analytics
-
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `GET` | `/analytics/dashboard` | Get dashboard statistics |
 | `GET` | `/analytics/activity` | Get activity metrics |
+| `GET` | `/analytics/manager/team` | Get team performance stats |
 
-### 🤖 AI Features *(Coming Soon)*
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/ai/code-review` | Get AI code review |
-
-> 💡 **Tip**: Visit http://localhost:8000/docs for interactive API documentation with Swagger UI!
-
----
-
-## 💻 Development
-
-### Running Without Docker
-
-#### Backend Setup
-
-```bash
-cd backend
-
-# Create virtual environment
-python -m venv venv
-
-# Activate virtual environment
-# Windows:
-venv\Scripts\activate
-# macOS/Linux:
-source venv/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Setup environment
-cp .env.example .env
-# Edit .env with your credentials
-
-# Run migrations
-alembic upgrade head
-
-# Start development server
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-#### Frontend Setup
-
-```bash
-cd frontend
-
-# Install dependencies
-npm install
-
-# Create environment file
-echo "VITE_API_URL=http://localhost:8000" > .env.local
-echo "VITE_GITHUB_CLIENT_ID=your_client_id" >> .env.local
-
-# Start development server
-npm run dev
-```
-
-### Database Migrations
-
-```bash
-# Create a new migration
-alembic revision --autogenerate -m "Description of changes"
-
-# Apply migrations
-alembic upgrade head
-
-# Rollback one migration
-alembic downgrade -1
-```
-
----
-
-## 🧪 Testing
-
-### Backend Tests
-
-```bash
-cd backend
-
-# Run all tests
-pytest
-
-# Run with coverage
-pytest --cov=app --cov-report=html
-
-# Run specific test file
-pytest tests/test_main.py
-```
-
-### Frontend Build
-
-```bash
-cd frontend
-
-# Build for production
-npm run build
-
-# Preview production build
-npm run preview
-
-# Lint code
-npm run lint
-```
-
----
-
-## 🗄️ Database Schema
-
-### Core Tables
-
-| Table | Description |
-|-------|-------------|
-| `users` | User accounts with GitHub integration |
-| `spaces` | Organizational spaces for repositories |
-| `repositories` | GitHub repositories |
-| `commits` | Repository commits |
-| `pull_requests` | Pull requests |
-| `reviews` | PR reviews |
-
-### Analytics Tables
-
-| Table | Description |
-|-------|-------------|
-| `analytics_activity` | User activity metrics |
-| `analytics_quality` | Code quality metrics |
-| `analytics_collaboration` | Collaboration metrics |
-| `ai_feedback` | AI-generated insights |
-
----
-
-## 🔒 Security Features
-
-- 🔐 **JWT-based authentication** - Secure token management
-- 🔑 **GitHub OAuth** - Industry-standard authentication
-- 🔒 **Password hashing** - bcrypt encryption
-- 🛡️ **CORS protection** - Configured for security
-- 🔐 **Environment secrets** - No hardcoded credentials
-- 🚫 **SQL injection protection** - SQLAlchemy ORM
-
----
-
-## 🚧 Roadmap
-
-### 🎯 Sprint 2 *(Planned)*
-- [ ] Pull request analytics
-- [ ] Team collaboration metrics
-- [ ] Advanced data visualizations
-- [ ] Real-time notifications
-
-### 🎯 Sprint 3 *(Planned)*
-- [ ] AI-powered code reviews
-- [ ] Pattern detection
-- [ ] Webhook integration
-- [ ] Custom dashboards
-
-### 🎯 Future Enhancements
-- [ ] Multi-platform support (GitLab, Bitbucket)
-- [ ] Mobile app
-- [ ] Advanced AI insights
-- [ ] Team benchmarking
+> 💡 **Tip**: Visit [http://localhost:8000/docs](http://localhost:8000/docs) for full interactive documentation.
 
 ---
 
 ## 🤝 Contributing
 
-We welcome contributions! Here's how you can help:
-
+We welcome contributions!
 1. 🍴 Fork the repository
 2. 🌿 Create a feature branch (`git checkout -b feature/AmazingFeature`)
 3. 💾 Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. 📤 Push to the branch (`git push origin feature/AmazingFeature`)
-5. 🔀 Open a Pull Request
-
-### Development Guidelines
-
-- Follow PEP 8 for Python code
-- Use TypeScript for all frontend code
-- Write tests for new features
-- Update documentation as needed
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-## 👥 Team
-
-**GitArena Development Team**
-
-Made with ❤️ by developers, for developers.
-
----
-
-## 📞 Support
-
-Having issues? We're here to help!
-
-- 📧 **Email**: support@gitarena.dev
-- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/Efrat-Wilinger/-GitArena/issues)
-- 💬 **Discussions**: [GitHub Discussions](https://github.com/Efrat-Wilinger/-GitArena/discussions)
+4. 🔀 Open a Pull Request
 
 ---
 
@@ -497,8 +302,6 @@ Having issues? We're here to help!
 ### 🌟 Star us on GitHub!
 
 If you find GitArena useful, please consider giving it a star ⭐
-
-**Sprint 1 Status**: ✅ **Complete**
 
 [⬆ Back to Top](#️-gitarena)
 
