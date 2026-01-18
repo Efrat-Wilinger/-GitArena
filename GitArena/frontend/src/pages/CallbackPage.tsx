@@ -31,6 +31,9 @@ const CallbackPage: React.FC = () => {
                 // Store token and user in localStorage
                 localStorage.setItem('token', response.access_token);
                 localStorage.setItem('user', JSON.stringify(response.user));
+                if (response.user.role) {
+                    localStorage.setItem('currentUserGlobalRole', response.user.role);
+                }
 
                 setStatus('Login successful! Redirecting...');
                 setIsSuccess(true);

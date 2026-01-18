@@ -557,17 +557,25 @@ class AnalyticsService:
             # 1. Fetch Registered Space Members (Base list)
             space_members = self.db.query(SpaceMember).filter(SpaceMember.space_id.in_(space_ids)).all()
             
+            # Fetch spaces to check ownership
+            spaces = self.db.query(Space).filter(Space.id.in_(space_ids)).all()
+            space_owner_map = {s.id: s.owner_id for s in spaces}
+
             for sm in space_members:
                 user = sm.user
                 if not user: continue
                 
+                # Check ownership - Override role if user is the owner
+                is_owner = space_owner_map.get(sm.space_id) == user.id
+                final_role = 'manager' if is_owner else sm.role
+
                 members_map[str(user.id)] = {
                     "id": str(user.id),
                     "username": user.username,
                     "name": user.name or user.username,
                     "email": user.email,
                     "avatar_url": user.avatar_url,
-                    "role": sm.role, # 'manager', 'member'
+                    "role": final_role, # 'manager', 'member'
                     "joined_at": user.created_at.isoformat() if user.created_at else datetime.utcnow().isoformat(),
                     "stats": {
                         "commits": 0,
