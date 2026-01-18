@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { githubApi } from '../../api/github';
 import { useProject } from '../../contexts/ProjectContext';
 import LeaderboardWidget from '../../components/LeaderboardWidget';
+import TeamAIAnalytics from '../../components/TeamAIAnalytics';
 
 interface TeamMember {
     id: string;
@@ -29,8 +30,8 @@ const TeamManagementPage: React.FC = () => {
             if (!currentProjectId) return;
 
             try {
-                // Fetch project-specific members
-                const data = await githubApi.getTeamMembers(currentProjectId.toString());
+                // Fetch project-specific members with analytics data
+                const data = await githubApi.getManagerTeamMembers(currentProjectId.toString());
                 // Map API data to component state
                 const mappedMembers = data.map((m: any) => ({
                     ...m,
@@ -59,7 +60,7 @@ const TeamManagementPage: React.FC = () => {
             setShowAddModal(false);
             setNewMemberUsername('');
             // Re-fetch members
-            const data = await githubApi.getTeamMembers(currentProjectId.toString());
+            const data = await githubApi.getManagerTeamMembers(currentProjectId.toString());
             setMembers(data.map((m: any) => ({ ...m, status: 'active' as const })));
         } catch (error) {
             alert('Failed to add member. Make sure the username exists.');
@@ -161,6 +162,11 @@ const TeamManagementPage: React.FC = () => {
             {/* Leaderboard Section */}
             <div className="mb-2">
                 <LeaderboardWidget projectId={currentProjectId || undefined} />
+            </div>
+
+            {/* Team Analytics (Real Data) */}
+            <div className="mb-8">
+                <TeamAIAnalytics projectId={currentProjectId?.toString()} />
             </div>
 
             {/* Members List */}

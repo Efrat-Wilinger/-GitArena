@@ -63,12 +63,13 @@ async def get_manager_activity_log(
 
 @router.get("/manager/team", response_model=list)
 async def get_manager_team_members(
+    project_id: int = None,
     current_user: UserResponse = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get global team members for manager"""
     service = AnalyticsService(db)
-    return service.get_manager_team_members(current_user.id)
+    return service.get_manager_team_members(current_user.id, project_id)
 
 
 @router.get("/manager/analytics-report", response_model=dict)

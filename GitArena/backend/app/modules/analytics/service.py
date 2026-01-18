@@ -60,6 +60,83 @@ class AnalyticsService:
         
         return list(set(space_ids)) # Deduplicate
 
+    def _get_repository_contributors(self, repo_ids: list[int]) -> list[dict]:
+        """
+        Identify all contributors based on commit history.
+        Tries to fuzzy match git authors to registered users.
+        Returns list of dicts with user info (real or virtual).
+        """
+        # 1. Get all distinct authors from commits
+        from app.shared.models import Commit
+        authors = self.db.query(
+            Commit.author_name, 
+            Commit.author_email
+        ).filter(
+            Commit.repository_id.in_(repo_ids)
+        ).distinct().all()
+        
+        contributors = {}
+        
+        # 2. Get all registered users to cache (optimization)
+        # In a huge system we would query by email, but here we can fetch all or just match
+        all_users = self.db.query(User).all()
+        user_email_map = {u.email.lower(): u for u in all_users if u.email}
+        # Normalize maps: lowercase and remove spaces for fuzzy name matching
+        user_username_map = {u.username.lower().replace(" ", ""): u for u in all_users if u.username}
+        user_realname_map = {u.name.lower().replace(" ", ""): u for u in all_users if u.name}
+        
+        for name, email in authors:
+            if not name: continue
+            
+            # Normalization
+            email_key = email.lower() if email else None
+            name_key = name.lower()
+            name_key_stripped = name_key.replace(" ", "")
+            
+            # Try match
+            matched_user = None
+            if email_key and email_key in user_email_map:
+                matched_user = user_email_map[email_key]
+            elif name_key_stripped in user_username_map:
+                matched_user = user_username_map[name_key_stripped]
+            elif name_key_stripped in user_realname_map:
+                matched_user = user_realname_map[name_key_stripped]
+                
+            # Key for deduplication in our result list
+            # If matched user, use user_id. If not, use email or name.
+            # IMPORTANT: We use the matched user's ID as the primary key if found to merge different git identities
+            unique_id = f"user_{matched_user.id}" if matched_user else (email_key or name_key)
+            
+            if unique_id not in contributors:
+                if matched_user:
+                    contributors[unique_id] = {
+                        "id": matched_user.id,
+                        "is_registered": True,
+                        "name": matched_user.name or matched_user.username,
+                        "username": matched_user.username,
+                        "email": matched_user.email,
+                        "avatar_url": matched_user.avatar_url or f"https://ui-avatars.com/api/?name={matched_user.name or matched_user.username}&background=random",
+                        "git_emails": {email_key} if email_key else set(),
+                        "git_names": {name_key}
+                    }
+                else:
+                    contributors[unique_id] = {
+                        "id": None, # Non-registered
+                        "is_registered": False,
+                        "name": name,
+                        "username": name, # Fallback
+                        "email": email,
+                        "avatar_url": f"https://ui-avatars.com/api/?name={name}&background=random",
+                        "git_emails": {email_key} if email_key else set(),
+                        "git_names": {name_key}
+                    }
+            else:
+                # Merge git identities
+                if email_key: contributors[unique_id]["git_emails"].add(email_key)
+                contributors[unique_id]["git_names"].add(name_key)
+                
+        return list(contributors.values())
+
     def get_manager_stats(self, user_id: int, project_id: int = None):
         """
         Aggregate statistics for manager dashboard, optionally filtered by project
@@ -259,7 +336,9 @@ class AnalyticsService:
                 # Count commits by this user (match by email or username in commit author)
                 user_commits = self.db.query(Commit).join(Repository).filter(
                     Repository.space_id.in_(space_ids),
-                    (Commit.author_email == current_user.email) | (Commit.author_name == current_user.username)
+                    (Commit.author_email == current_user.email) | 
+                    (Commit.author_name == current_user.username) |
+                    (Commit.author_name == current_user.name)
                 ).count()
                 
                 members_data.append({
@@ -274,7 +353,9 @@ class AnalyticsService:
                 # Count contributions: commits by this peer (match by email or username)
                 contribs = self.db.query(Commit).join(Repository).filter(
                     Repository.space_id.in_(space_ids),
-                    (Commit.author_email == peer.email) | (Commit.author_name == peer.username)
+                    (Commit.author_email == peer.email) | 
+                    (Commit.author_name == peer.username) |
+                    (Commit.author_name == peer.name)
                 ).count()
                 
                 members_data.append({
@@ -365,55 +446,170 @@ class AnalyticsService:
             print(f"ERROR: get_manager_activity_log: {e}")
             return []
 
-    def get_manager_team_members(self, user_id: int) -> list[dict]:
-        """Aggregate team members from all managed spaces"""
+    def _get_repository_contributors(self, repo_ids: list[int]) -> list[dict]:
+        """
+        Helper to get unique contributors (registered users and external) for a given set of repository IDs.
+        Aggregates commit authors by email/name and tries to link them to registered users.
+        """
+        from app.shared.models import Commit, User
+        from collections import defaultdict
+        from sqlalchemy import or_
+
+        # Get all unique author names and emails from commits in these repositories
+        commit_authors = self.db.query(
+            Commit.author_name,
+            Commit.author_email
+        ).filter(
+            Commit.repository_id.in_(repo_ids)
+        ).distinct().all()
+
+        # Map to store unique contributors
+        contributors_map = {} # Key: canonical_id (email or name), Value: contributor_data
+
+        # First pass: try to link to registered users
+        registered_users = self.db.query(User).filter(
+            or_(
+                User.email.in_([ca.author_email for ca in commit_authors if ca.author_email]),
+                User.username.in_([ca.author_name for ca in commit_authors if ca.author_name]),
+                User.name.in_([ca.author_name for ca in commit_authors if ca.author_name])
+            )
+        ).all()
+
+        user_email_map = {u.email: u for u in registered_users if u.email}
+        user_username_map = {u.username: u for u in registered_users if u.username}
+        user_name_map = {u.name: u for u in registered_users if u.name}
+
+        for ca in commit_authors:
+            canonical_id = None
+            user = None
+
+            # Try to match by email first
+            if ca.author_email and ca.author_email in user_email_map:
+                user = user_email_map[ca.author_email]
+                canonical_id = f"email:{ca.author_email}"
+            # Then by username
+            elif ca.author_name and ca.author_name in user_username_map:
+                user = user_username_map[ca.author_name]
+                canonical_id = f"username:{ca.author_name}"
+            # Then by full name
+            elif ca.author_name and ca.author_name in user_name_map:
+                user = user_name_map[ca.author_name]
+                canonical_id = f"name:{ca.author_name}"
+            # If no registered user, use email or name as canonical ID for external
+            else:
+                canonical_id = f"email:{ca.author_email}" if ca.author_email else f"name:{ca.author_name}"
+                if not canonical_id or canonical_id == "email:" or canonical_id == "name:":
+                    continue # Skip if no identifiable info
+
+            if canonical_id not in contributors_map:
+                contributor_data = {
+                    "id": None,
+                    "username": None,
+                    "name": ca.author_name or "Unknown",
+                    "email": ca.author_email,
+                    "avatar_url": f"https://ui-avatars.com/api/?name={ca.author_name or 'Unknown'}&background=random",
+                    "is_registered": False,
+                    "git_emails": set(),
+                    "git_names": set()
+                }
+                if user:
+                    contributor_data.update({
+                        "id": user.id,
+                        "username": user.username,
+                        "name": user.name or user.username,
+                        "email": user.email,
+                        "avatar_url": user.avatar_url,
+                        "is_registered": True
+                    })
+                contributors_map[canonical_id] = contributor_data
+            
+            # Aggregate all names and emails associated with this canonical identity
+            if ca.author_email:
+                contributors_map[canonical_id]["git_emails"].add(ca.author_email)
+            if ca.author_name:
+                contributors_map[canonical_id]["git_names"].add(ca.author_name)
+        
+        # Convert sets to lists for JSON serialization
+        for contributor in contributors_map.values():
+            contributor["git_emails"] = list(contributor["git_emails"])
+            contributor["git_names"] = list(contributor["git_names"])
+
+        return list(contributors_map.values())
+
+    def get_manager_team_members(self, user_id: int, project_id: int = None) -> list[dict]:
+        """Aggregate team members from all managed spaces (CONTRIBUTORS)"""
         try:
-            space_ids = self._get_user_team_space_ids(user_id)
+            if project_id:
+                space_ids = [project_id]
+            else:
+                space_ids = self._get_user_team_space_ids(user_id)
             if not space_ids:
                 return []
 
-            from app.shared.models import SpaceMember, User, Commit, Repository
+            from app.shared.models import Space, Repository, Commit, SpaceMember
+            from datetime import datetime
+            from sqlalchemy import or_
             
-            # Find all members in these spaces
-            # Use distinct to avoid duplicates
-            members = self.db.query(User).join(SpaceMember).filter(
-                SpaceMember.space_id.in_(space_ids)
-            ).distinct().all()
-
+            # Get Repos
+            repos = self.db.query(Repository).filter(Repository.space_id.in_(space_ids)).all()
+            repo_ids = [r.id for r in repos]
+            
+            if not repo_ids:
+                return []
+            
+            # Get Contributors
+            contributors = self._get_repository_contributors(repo_ids)
+            
             result = []
-            for user in members:
-                # Calculate aggregated stats
-                commit_count = self.db.query(func.count(Commit.id)).join(Repository).filter(
-                    Repository.space_id.in_(space_ids),
-                    Repository.user_id == user.id # Assuming user_id on repo is owner? No, check commits by author
-                ).scalar() or 0
+            for contributor in contributors:
+                # Calculate aggregated stats for this contributor
+                # We interpret the contributor's identity set (emails/names) to match commits
                 
-                # Better commit count: match email/username against user
-                # This is expensive but accurate-ish
-                commit_count = self.db.query(func.count(Commit.id)).join(Repository).filter(
-                    Repository.space_id.in_(space_ids),
-                    (Commit.author_email == user.email) | (Commit.author_name == user.username)
+                # Build filter list
+                emails = [e for e in contributor["git_emails"] if e]
+                names = [n for n in contributor["git_names"] if n]
+                
+                # SQLAlchemy filter construction
+                filters = []
+                if emails: filters.append(Commit.author_email.in_(emails))
+                if names: filters.append(Commit.author_name.in_(names))
+                
+                if not filters: continue # Should not happen if contributor has any identity info
+                
+                commit_count = self.db.query(func.count(Commit.id)).filter(
+                    Commit.repository_id.in_(repo_ids),
+                    or_(*filters)
                 ).scalar() or 0
 
-                # Determine role (if manager in ANY space, show as manager?)
-                # Or show highest role
-                is_manager = self.db.query(SpaceMember).filter(
-                    SpaceMember.space_id.in_(space_ids),
-                    SpaceMember.user_id == user.id,
-                    SpaceMember.role.in_(['manager', 'admin'])
-                ).first() is not None
+                # Construct result object
+                # Determine role: if registered, check DB. If not, 'contributor'.
+                role = "member"
+                joined_at = datetime.utcnow().isoformat() # Mock for non-registered
                 
-                # Also check ownership
-                is_owner = self.user_repository.get_by_id(user_id).id == user.id # Wait, strict check
+                if contributor["is_registered"]:
+                    # Fetch real user to check role/joined
+                    # We could optimize this by loading it in _get_contributors but this is fine
+                    db_user = self.user_repository.get_by_id(contributor["id"])
+                    if db_user:
+                        joined_at = db_user.created_at.isoformat()
+                        # Check role in spaces
+                        is_manager = self.db.query(SpaceMember).filter(
+                            SpaceMember.space_id.in_(space_ids),
+                            SpaceMember.user_id == db_user.id,
+                            SpaceMember.role.in_(['manager', 'admin'])
+                        ).first() is not None
+                        if is_manager: role = "manager"
+                else:
+                    role = "external"
 
                 result.append({
-                    "id": str(user.id),
-                    "username": user.username,
-                    "name": user.name or user.username,
-                    "email": user.email,
-                    "avatar_url": user.avatar_url,
-                    "role": "manager" if is_manager else "member",
-                    "joined_at": user.created_at.isoformat(),
+                    "id": str(contributor["id"]) if contributor["id"] else f"ext-{contributor['name']}",
+                    "username": contributor["username"],
+                    "name": contributor["name"],
+                    "email": contributor["email"],
+                    "avatar_url": contributor["avatar_url"],
+                    "role": role,
+                    "joined_at": joined_at,
                     "stats": {
                         "commits": commit_count,
                         "prs": 0,
@@ -421,9 +617,13 @@ class AnalyticsService:
                     }
                 })
             
+            # Sort by commits desc
+            result.sort(key=lambda x: x["stats"]["commits"], reverse=True)
             return result
         except Exception as e:
             print(f"ERROR: get_manager_team_members: {e}")
+            import traceback
+            traceback.print_exc()
             return []
 
     def get_manager_deep_dive_analytics(self, user_id: int, time_range: str = "30days", project_id: int = None) -> dict:
@@ -774,7 +974,7 @@ class AnalyticsService:
 
     def get_leaderboard(self, user_id: int, project_id: int = None, period: str = "all-time") -> dict:
         """
-        Get team leaderboard rankings based on contributions
+        Get team leaderboard rankings based on contributions (ALL CONTRIBUTORS)
         """
         try:
             if project_id:
@@ -792,44 +992,57 @@ class AnalyticsService:
             if not repo_ids:
                 return {"entries": [], "period": period}
             
-            # Get all team members
-            from app.shared.models import SpaceMember, PullRequest
-            members = self.db.query(User).join(SpaceMember).filter(
-                SpaceMember.space_id.in_(space_ids)
-            ).distinct().all()
+            # Get Contributors
+            contributors = self._get_repository_contributors(repo_ids)
             
             leaderboard_data = []
             
-            for member in members:
+            from sqlalchemy import or_
+            from app.shared.models import PullRequest
+            
+            for contributor in contributors:
+                # Build filter list
+                emails = [e for e in contributor["git_emails"] if e]
+                names = [n for n in contributor["git_names"] if n]
+                
+                filters = []
+                if emails: filters.append(Commit.author_email.in_(emails))
+                if names: filters.append(Commit.author_name.in_(names))
+                
+                if not filters: continue
+                
                 # Count contributions
-                commits_count = self.db.query(func.count(Commit.id)).join(Repository).filter(
-                    Repository.id.in_(repo_ids),
-                    (Commit.author_email == member.email) | (Commit.author_name == member.username)
+                commits_count = self.db.query(func.count(Commit.id)).filter(
+                    Commit.repository_id.in_(repo_ids),
+                    or_(*filters)
                 ).scalar() or 0
                 
-                prs_count = self.db.query(func.count(PullRequest.id)).filter(
-                    PullRequest.repository_id.in_(repo_ids),
-                    PullRequest.author == member.username
-                ).scalar() or 0
+                # PRs (Try to match by username if registered, or name fallback)
+                # PR table usually has 'author' as username (from GitHub)
+                prs_count = 0
+                if contributor["username"]:
+                    prs_count = self.db.query(func.count(PullRequest.id)).filter(
+                        PullRequest.repository_id.in_(repo_ids),
+                        PullRequest.author == contributor["username"]
+                    ).scalar() or 0
                 
-                # Reviews count - approximate as merged PRs (rough estimate)
-                reviews_count = self.db.query(func.count(PullRequest.id)).filter(
-                    PullRequest.repository_id.in_(repo_ids),
-                    PullRequest.state.in_(['merged'])
-                ).scalar() or 0
-                reviews_count = int(reviews_count * 0.2)  # Rough approximation
-                
+                # Reviews (approx)
+                reviews_count = int(prs_count * 0.5) # Mocking reviews correlation to PRs for now
+                if contributor["is_registered"]:
+                     reviews_count = int(commits_count * 0.1 + prs_count * 0.5)
+
                 # Calculate total score (weighted)
                 total_score = (commits_count * 1) + (prs_count * 3) + (reviews_count * 2)
                 
-                leaderboard_data.append({
-                    "name": member.name or member.username,
-                    "avatar_url": member.avatar_url,
-                    "commits": commits_count,
-                    "prs": prs_count,
-                    "reviews": reviews_count,
-                    "total_score": total_score
-                })
+                if total_score > 0:
+                    leaderboard_data.append({
+                        "name": contributor["name"],
+                        "avatar_url": contributor["avatar_url"],
+                        "commits": commits_count,
+                        "prs": prs_count,
+                        "reviews": reviews_count,
+                        "total_score": total_score
+                    })
             
             # Sort by total score
             leaderboard_data.sort(key=lambda x: x["total_score"], reverse=True)
@@ -1105,9 +1318,7 @@ class AnalyticsService:
 
     def get_team_capacity(self, user_id: int, project_id: int = None) -> dict:
         """
-        Calculate team capacity planning metrics.
-        Estimates velocity based on recent activity (30 days).
-        Predicts output for next Sprint (14 days).
+        Calculate team capacity planning metrics (ALL CONTRIBUTORS)
         """
         try:
             if project_id:
@@ -1116,71 +1327,59 @@ class AnalyticsService:
                 space_ids = self._get_user_team_space_ids(user_id)
             
             if not space_ids:
-                return {
-                    "total_capacity_score": 0,
-                    "active_members_count": 0,
-                    "average_velocity": 0.0,
-                    "predicted_sprint_output": 0,
-                    "sprint_risk": "Low",
-                    "member_loads": []
-                }
+                return self._empty_capacity()
 
-            # Get team members
-            from app.shared.models import SpaceMember, User, Commit, Repository
-            
-            # Fetch members in these spaces
-            members = self.db.query(User).join(SpaceMember).filter(SpaceMember.space_id.in_(space_ids)).distinct().all()
-            
-            if not members:
-                 return {
-                    "total_capacity_score": 0,
-                    "active_members_count": 0,
-                    "average_velocity": 0.0,
-                    "predicted_sprint_output": 0,
-                    "sprint_risk": "Low",
-                    "member_loads": []
-                }
-            
-            # Repositories for these spaces
+            # Get Repos
+            from app.shared.models import Repository, Commit
             repos = self.db.query(Repository).filter(Repository.space_id.in_(space_ids)).all()
             repo_ids = [r.id for r in repos]
+            
+            if not repo_ids:
+                return self._empty_capacity()
 
-            # Calculate velocity for each member (commits in last 30 days)
+            # Get Contributors
+            contributors = self._get_repository_contributors(repo_ids)
+            
+            if not contributors:
+                return self._empty_capacity()
+
+            # Calculate velocity
             from datetime import datetime, timedelta
+            from sqlalchemy import or_
             thirty_days_ago = datetime.utcnow() - timedelta(days=30)
             
             member_loads = []
             total_velocity = 0.0
             
-            for member in members:
-                # Count commits by this author in relevant repos
-                # Note: Matching by author_name/email is tricky without strict linking.
-                # Assuming simple match or if we have user_id on commit (ideal)
-                # Fallback: match by username in author_name (fuzzy)
+            for contributor in contributors:
+                # Build filter list
+                emails = [e for e in contributor["git_emails"] if e]
+                names = [n for n in contributor["git_names"] if n]
                 
-                # Best effort: count commits where author_name matches distinct names used by this user
-                # faster: just count all commits in these repos and filter in python if needed, 
-                # or assume Author Name ~= User Name.
-                # In this system, lets assume filtering by email if available, or name.
+                filters = []
+                if emails: filters.append(Commit.author_email.in_(emails))
+                if names: filters.append(Commit.author_name.in_(names))
+                if not filters: continue
                 
                 commit_count = self.db.query(Commit).filter(
                     Commit.repository_id.in_(repo_ids),
                     Commit.committed_date >= thirty_days_ago,
-                    Commit.author_name == member.username # Simplification for prototype
+                    or_(*filters)
                 ).count()
                 
                 daily_velocity = commit_count / 30.0
                 total_velocity += daily_velocity
                 
-                member_loads.append({
-                    "user_id": member.id,
-                    "username": member.username,
-                    "avatar_url": member.avatar_url,
-                    "velocity": round(daily_velocity, 2),
-                    "raw_velocity": daily_velocity
-                })
+                if daily_velocity > 0: # Only include active
+                    member_loads.append({
+                        "user_id": contributor["id"],
+                        "username": contributor["username"],
+                        "avatar_url": contributor["avatar_url"],
+                        "velocity": round(daily_velocity, 2),
+                        "raw_velocity": daily_velocity
+                    })
             
-            avg_velocity = total_velocity / len(members) if members else 0
+            avg_velocity = total_velocity / len(member_loads) if member_loads else 0
             
             # Determine status
             final_member_loads = []
@@ -1205,21 +1404,19 @@ class AnalyticsService:
             predicted_sprint_output = int(total_velocity * 14) # 2 weeks
             
             # Risk assessment
-            # High risk if high variance or very low total velocity
             sprint_risk = "Low"
-            if len(members) < 2:
+            active_count = len(final_member_loads)
+            if active_count < 2:
                 sprint_risk = "High"
-            elif avg_velocity < 0.1: # Very low activity
+            elif avg_velocity < 0.1: 
                 sprint_risk = "High"
             
-            # Capacity score (0-100) based on optimal load distribution
-            # Simple heuristic: heavily penalized by underutilized members
             optimal_count = sum(1 for m in final_member_loads if m["status"] == "Optimal")
-            capacity_score = int((optimal_count / len(members)) * 100) if members else 0
+            capacity_score = int((optimal_count / active_count) * 100) if active_count else 0
 
             return {
                 "total_capacity_score": capacity_score,
-                "active_members_count": len(members),
+                "active_members_count": active_count,
                 "average_velocity": round(avg_velocity, 2),
                 "predicted_sprint_output": predicted_sprint_output,
                 "sprint_risk": sprint_risk,
@@ -1230,11 +1427,14 @@ class AnalyticsService:
             print(f"ERROR: get_team_capacity failed: {e}")
             import traceback
             traceback.print_exc()
-            return {
-                "total_capacity_score": 0,
-                "active_members_count": 0,
-                "average_velocity": 0.0,
-                "predicted_sprint_output": 0,
-                "sprint_risk": "Low",
-                "member_loads": []
-            }
+            return self._empty_capacity()
+
+    def _empty_capacity(self):
+        return {
+            "total_capacity_score": 0,
+            "active_members_count": 0,
+            "average_velocity": 0.0,
+            "predicted_sprint_output": 0,
+            "sprint_risk": "Low",
+            "member_loads": []
+        }

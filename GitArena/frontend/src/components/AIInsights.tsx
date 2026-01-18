@@ -37,45 +37,7 @@ export const AIInsights: React.FC<{ userId?: number }> = ({ userId }) => {
                 setInsights(insightsWithIcons);
             } catch (error) {
                 console.error('Failed to fetch AI insights:', error);
-                // Fallback to mock data on error so component still displays
-                const mockInsights: InsightCard[] = [
-                    {
-                        id: '1',
-                        type: 'warning',
-                        title: 'Burnout Risk Alert',
-                        description: 'Unusual activity detected: 40% of commits were made between 22:00-02:00 this week.',
-                        metric: 'High Risk',
-                        icon: '⚠️',
-                        trend: 'up'
-                    },
-                    {
-                        id: '2',
-                        type: 'info',
-                        title: 'Knowledge Silo',
-                        description: 'You are the sole contributor to the "Authentication" module. Recommend code sharing.',
-                        metric: 'Auth.py',
-                        icon: '🧠'
-                    },
-                    {
-                        id: '3',
-                        type: 'positive',
-                        title: 'High Impact',
-                        description: 'Your code retention rate is 85%, significantly higher than the team average of 60%.',
-                        metric: 'Top 5%',
-                        icon: '✨',
-                        trend: 'up'
-                    },
-                    {
-                        id: '4',
-                        type: 'positive',
-                        title: 'Rapid Resolver',
-                        description: 'You fix bugs in Python repositories 30% faster than the team baseline.',
-                        metric: '-1.2 hrs',
-                        icon: '🚀',
-                        trend: 'up'
-                    }
-                ];
-                setInsights(mockInsights);
+                setInsights([]);
             } finally {
                 setLoading(false);
             }

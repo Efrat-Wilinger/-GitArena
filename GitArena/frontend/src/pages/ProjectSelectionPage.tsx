@@ -15,7 +15,7 @@ interface Space {
 
 const ProjectSelectionPage: React.FC = () => {
     const navigate = useNavigate();
-    const { setCurrentProjectId, setCurrentProjectName, fetchAndSetUserRole, currentUserRole } = useProject();
+    const { setCurrentProjectId, setCurrentProjectName, fetchAndSetUserRole } = useProject();
 
     const { data: user } = useQuery<User>({
         queryKey: ['currentUser'],
@@ -74,10 +74,7 @@ const ProjectSelectionPage: React.FC = () => {
         navigate('/projects/new');
     };
 
-    const handleGoToDashboard = () => {
-        // Use current role if available, otherwise default to member
-        navigate(currentUserRole === 'manager' ? '/manager/dashboard' : '/member/dashboard');
-    };
+
 
 
     if (isLoading) {

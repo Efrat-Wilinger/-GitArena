@@ -181,8 +181,8 @@ export const githubApi = {
         return response.data;
     },
 
-    getManagerTeamMembers: async (): Promise<TeamMember[]> => {
-        const response = await apiClient.get('/analytics/manager/team');
+    getManagerTeamMembers: async (projectId?: string): Promise<TeamMember[]> => {
+        const response = await apiClient.get('/analytics/manager/team', { params: { project_id: projectId } });
         return response.data;
     },
 

@@ -162,7 +162,9 @@ class UserService:
         # 2. Recent Commits (Global for user)
         # Find commits by author email or name
         commits_query = self.db.query(Commit, Repository).join(Repository).filter(
-            (Commit.author_email == user.email) | (Commit.author_name == user.username)
+            (Commit.author_email == user.email) | 
+            (Commit.author_name == user.username) |
+            (Commit.author_name == user.name)
         ).order_by(desc(Commit.committed_date)).limit(5).all()
         
         recent_commits_data = []
@@ -227,7 +229,9 @@ class UserService:
             date = today - timedelta(days=i)
             # Count commits for this day
             count = self.db.query(func.count(Commit.id)).filter(
-                (Commit.author_email == user.email) | (Commit.author_name == user.username),
+                (Commit.author_email == user.email) | 
+                (Commit.author_name == user.username) |
+                (Commit.author_name == user.name),
                 func.date(Commit.committed_date) == date
             ).scalar() or 0
             weekly_activity.append(count)
@@ -239,7 +243,9 @@ class UserService:
             func.date(Commit.committed_date).label('date'),
             func.count(Commit.id).label('count')
         ).filter(
-            (Commit.author_email == user.email) | (Commit.author_name == user.username),
+            (Commit.author_email == user.email) | 
+            (Commit.author_name == user.username) |
+            (Commit.author_name == user.name),
             Commit.committed_date >= year_ago
         ).group_by(func.date(Commit.committed_date)).all()
         
