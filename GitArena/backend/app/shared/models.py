@@ -31,6 +31,9 @@ class User(Base):
     repositories = relationship("Repository", back_populates="user")
     spaces = relationship("Space", back_populates="owner")
     space_memberships = relationship("SpaceMember", back_populates="user")
+    
+    gamification_stats = relationship("GamificationStats", uselist=False, back_populates="user")
+    achievements = relationship("UserAchievement", back_populates="user")
 
 
 class Space(Base):
@@ -285,3 +288,43 @@ class Quest(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     
     project = relationship("Space")
+
+
+class GamificationStats(Base):
+    __tablename__ = "gamification_stats"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), unique=True, index=True)
+    xp = Column(Integer, default=0)
+    level = Column(Integer, default=1)
+    streak = Column(Integer, default=0)
+    last_activity_date = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    user = relationship("User", back_populates="gamification_stats")
+
+
+class Achievement(Base):
+    __tablename__ = "achievements"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, unique=True)
+    description = Column(String)
+    icon = Column(String)
+    xp_reward = Column(Integer)
+    condition_type = Column(String)  # commits_count, prs_merged, etc.
+    condition_value = Column(Integer)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class UserAchievement(Base):
+    __tablename__ = "user_achievements"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    achievement_id = Column(Integer, ForeignKey("achievements.id"))
+    unlocked_at = Column(DateTime, default=datetime.utcnow)
+    
+    user = relationship("User", back_populates="achievements")
+    achievement = relationship("Achievement")

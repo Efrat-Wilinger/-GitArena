@@ -148,3 +148,20 @@ async def get_commit_activity(
     """Get repository commit activity for the last N days"""
     service = GitHubService(db)
     return service.get_commit_activity(repo_id, days)
+
+@router.post("/repos/{repo_id}/issues", response_model=dict)
+async def create_issue(
+    repo_id: int,
+    issue: dict, # Should use IssueCreate DTO but sticking to dict for simplicity matching validation
+    current_user: UserResponse = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Create a new issue in a repository"""
+    service = GitHubService(db)
+    user_repo = UserRepository(db)
+    user = user_repo.get_by_id(current_user.id)
+    
+    if not user or not user.access_token:
+        raise HTTPException(status_code=400, detail="User not connected to GitHub")
+        
+    return await service.create_issue(repo_id, user.access_token, issue["title"], issue.get("body"))

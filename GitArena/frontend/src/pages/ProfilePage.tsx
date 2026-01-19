@@ -21,6 +21,8 @@ import ContributionHeatmap from '../components/ContributionHeatmap';
 import { AchievementsSection } from '../components/AchievementBadge';
 import { useProject } from '../contexts/ProjectContext';
 import LeaderboardWidget from '../components/LeaderboardWidget';
+// import GamificationCard from '../components/GamificationCard'; // Temporarily disabled
+import MyTasksWidget from '../components/MyTasksWidget';
 
 const ProfilePage: React.FC = () => {
     const { currentProjectId: contextProjectId } = useProject();
@@ -366,94 +368,166 @@ const ProfilePage: React.FC = () => {
 
     // Member Dashboard
     const MemberDashboard = (
-        <div className="max-w-7xl mx-auto space-y-8 pb-12">
-            {/* Role Badge */}
-            <div className="flex items-center gap-3">
-                <div className="px-4 py-2 rounded-xl bg-blue-500/20 text-blue-300 font-semibold text-sm flex items-center gap-2">
-                    <span>👤</span>
-                    Member View
-                </div>
-            </div>
-
-            {/* Personal Header */}
-            <div className="modern-card p-8">
-                <div className="flex flex-col md:flex-row gap-8 items-start">
-                    <div className="relative">
-                        <div className="w-28 h-28 md:w-32 md:h-32 rounded-2xl overflow-hidden ring-2 ring-blue-500/20 shadow-xl">
-                            <img src={user?.avatar_url} alt={user?.username} className="w-full h-full object-cover" />
-                        </div>
-                        <div className="absolute -bottom-2 -right-2 bg-gradient-blue rounded-lg p-1.5 shadow-lg">
-                            <div className="w-3 h-3 bg-blue-400 rounded-full animate-pulse"></div>
+        <div className="max-w-7xl mx-auto space-y-6 pb-12">
+            {/* Header Section */}
+            <div className="flex flex-col md:flex-row gap-6 items-start justify-between">
+                <div>
+                    <div className="flex items-center gap-3 mb-2">
+                        <h1 className="text-3xl font-bold tracking-tight text-white">
+                            Developer Hub
+                        </h1>
+                        <div className="px-3 py-1 rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 text-white text-xs font-bold flex items-center gap-1">
+                            <span>👤</span> Member
                         </div>
                     </div>
+                    <p className="text-slate-400 max-w-xl">
+                        Your personal workspace and contribution analytics.
+                    </p>
+                </div>
 
-                    <div className="flex-1 space-y-4">
+                <button
+                    onClick={() => syncMutation.mutate()}
+                    disabled={isSyncing}
+                    className="btn-secondary flex items-center gap-2 shadow-lg"
+                >
+                    {isSyncing ? (
+                        <>
+                            <div className="animate-spin w-4 h-4 border-2 border-white/30 border-t-white rounded-full"></div>
+                            <span>Syncing...</span>
+                        </>
+                    ) : (
+                        <>
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            <span>Sync Data</span>
+                        </>
+                    )}
+                </button>
+            </div>
+
+            {/* Personal Stats Row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {[
+                    { label: 'Total Commits', value: counters.commits, icon: '💻', color: 'blue' },
+                    { label: 'Repositories', value: counters.repos, icon: '📂', color: 'purple' },
+                    { label: 'Pull Requests', value: counters.prs, icon: '🔀', color: 'green' },
+                    { label: 'Code Reviews', value: counters.reviews, icon: '👁️', color: 'orange' },
+                ].map((stat, i) => (
+                    <div key={i} className="modern-card p-6 flex items-center justify-between hover:scale-102 transition-transform cursor-default group relative overflow-hidden">
+                        <div className={`absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity text-6xl text-${stat.color}-500`}>
+                            {stat.icon}
+                        </div>
                         <div>
-                            <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-white mb-2">
-                                {user?.name}
-                            </h1>
-                            <div className="flex items-center gap-3 text-lg text-slate-400 font-medium">
-                                <span className="text-blue-400">@{user?.username}</span>
-                                <span>•</span>
-                                <span>{user?.company || 'Developer'}</span>
+                            <div className="text-3xl font-bold text-white mb-1">{stat.value.toLocaleString()}</div>
+                            <div className="text-sm text-slate-400 font-medium uppercase tracking-wider">{stat.label}</div>
+                        </div>
+                        <div className={`w-12 h-12 rounded-xl bg-${stat.color}-500/20 flex items-center justify-center text-2xl shadow-lg shadow-${stat.color}-500/10`}>
+                            {stat.icon}
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {/* Main Bento Grid Layout */}
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+
+                {/* Left Column - 8 cols */}
+                <div className="xl:col-span-8 space-y-6">
+                    {/* Personal Profile Card */}
+                    <div className="modern-card p-8">
+                        <div className="flex flex-col md:flex-row gap-8 items-start">
+                            <div className="relative">
+                                <div className="w-28 h-28 md:w-32 md:h-32 rounded-2xl overflow-hidden ring-2 ring-blue-500/20 shadow-xl">
+                                    <img src={user?.avatar_url} alt={user?.username} className="w-full h-full object-cover" />
+                                </div>
+                                <div className="absolute -bottom-2 -right-2 bg-gradient-blue rounded-lg p-1.5 shadow-lg">
+                                    <div className="w-3 h-3 bg-blue-400 rounded-full animate-pulse"></div>
+                                </div>
+                            </div>
+
+                            <div className="flex-1 space-y-3">
+                                <div>
+                                    <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-white mb-2">
+                                        {user?.name}
+                                    </h2>
+                                    <div className="flex items-center gap-3 text-lg text-slate-400 font-medium">
+                                        <span className="text-blue-400">@{user?.username}</span>
+                                        <span>•</span>
+                                        <span>{user?.company || 'Developer'}</span>
+                                    </div>
+                                </div>
+
+                                <p className="text-slate-400 leading-relaxed">
+                                    {user?.bio || "No bio provided."}
+                                </p>
                             </div>
                         </div>
-
-                        <p className="text-slate-400 leading-relaxed max-w-2xl">
-                            {user?.bio || "No bio provided."}
-                        </p>
                     </div>
 
-                    {/* Personal Quick Stats */}
-                    <div className="flex md:flex-col gap-4">
-                        <div className="text-center">
-                            <div className="text-3xl font-bold text-blue-400">{counters.commits.toLocaleString()}</div>
-                            <div className="text-xs text-slate-500 uppercase tracking-wide">Commits</div>
-                        </div>
-                        <div className="text-center">
-                            <div className="text-3xl font-bold text-blue-400">{counters.repos}</div>
-                            <div className="text-xs text-slate-500 uppercase tracking-wide">Repos</div>
-                        </div>
-                        <div className="text-center">
-                            <div className="text-3xl font-bold text-blue-400">{counters.prs}</div>
-                            <div className="text-xs text-slate-500 uppercase tracking-wide">PRs</div>
-                        </div>
+                    {/* Personal AI Insights */}
+                    <ErrorBoundary name="Personal Insights">
+                        <AIInsights userId={user?.id} projectId={currentProjectId} />
+                    </ErrorBoundary>
+
+                    {/* Personal Commit Graph */}
+                    <ErrorBoundary name="Personal Commit Graph">
+                        <AnimatedCommitGraph />
+                    </ErrorBoundary>
+
+                    {/* Stats Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <PullRequestStatus />
+                        <LanguageDistribution />
                     </div>
                 </div>
-            </div>
 
-            {/* Personal AI Insights */}
-            <ErrorBoundary name="Personal Insights">
-                <AIInsights userId={user?.id} projectId={currentProjectId} />
-            </ErrorBoundary>
+                {/* Right Column - 4 cols */}
+                <div className="xl:col-span-4 space-y-6">
+                    {/* Gamification Card - Temporarily disabled due to backend API issue */}
+                    {/* <GamificationCard 
+                        xp={user?.stats?.total_commits || 0}
+                        level={Math.floor((user?.stats?.total_commits || 0) / 100) + 1}
+                        nextLevelXp={((Math.floor((user?.stats?.total_commits || 0) / 100) + 1) * 100)}
+                        rank="Code Contributor"
+                    /> */}
 
-            {/* Personal Commit Graph */}
-            <ErrorBoundary name="Personal Commit Graph">
-                <AnimatedCommitGraph />
-            </ErrorBoundary>
+                    {/* My Active Tasks */}
+                    <MyTasksWidget projectId={currentProjectId} />
 
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <PullRequestStatus />
-                <LanguageDistribution />
-            </div>
-
-            {/* Contribution Heatmap */}
-            <div className="modern-card p-8">
-                <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                        <span className="w-2 h-8 bg-blue-500 rounded-full"></span>
-                        Contribution Matrix
-                    </h3>
+                    {/* Quests Widget */}
+                    <QuestsWidget
+                        stats={{
+                            commits: counters.commits,
+                            prs: counters.prs,
+                            issues: 0,
+                            reviews: counters.reviews
+                        }}
+                        isManager={false}
+                        projectId={currentProjectId}
+                    />
                 </div>
-                <ContributionHeatmap />
+
+                {/* Full Width Sections */}
+                <div className="xl:col-span-12 space-y-6">
+                    {/* Contribution Heatmap */}
+                    <div className="modern-card p-8">
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                                <span className="w-2 h-8 bg-blue-500 rounded-full"></span>
+                                Contribution Matrix
+                            </h3>
+                        </div>
+                        <ContributionHeatmap />
+                    </div>
+
+                    {/* Recent Activity */}
+                    <RecentCommits />
+
+                    {/* Achievements */}
+                    <AchievementsSection />
+                </div>
             </div>
-
-            {/* Recent Activity */}
-            <RecentCommits />
-
-            {/* Achievements */}
-            <AchievementsSection />
         </div>
     );
 

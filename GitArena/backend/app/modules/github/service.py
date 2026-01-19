@@ -11,6 +11,7 @@ from typing import List
 import httpx
 import asyncio
 import logging
+from fastapi import HTTPException
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
@@ -660,3 +661,48 @@ class GitHubService:
                 activity_map[date_str]["deletions"] += commit.deletions
                 
         return list(activity_map.values())
+
+    async def create_issue(self, repo_id: int, access_token: str, title: str, body: str = None) -> dict:
+        """Create a new issue in GitHub repository"""
+        repo = self.repository.get_repository_by_id(repo_id)
+        if not repo:
+            raise NotFoundException("Repository not found")
+            
+        try:
+            owner, repo_name = repo.full_name.split("/")
+        except ValueError:
+            logger.error(f"Invalid repository full_name: {repo.full_name}")
+            raise HTTPException(status_code=400, detail=f"Invalid repository name format: {repo.full_name}")
+
+        logger.info(f"Creating issue in {owner}/{repo_name} with title: {title}")
+        
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.post(
+                    f"https://api.github.com/repos/{owner}/{repo_name}/issues",
+                    headers={
+                        "Authorization": f"Bearer {access_token}",
+                        "Accept": "application/vnd.github.v3+json",
+                         "User-Agent": "GitArena-App"
+                    },
+                    json={
+                        "title": title,
+                        "body": body
+                    }
+                )
+                
+                logger.info(f"GitHub API Response Status: {response.status_code}")
+                
+                if response.status_code != 201:
+                    logger.error(f"GitHub API Error (Create Issue): {response.status_code} - {response.text}")
+                    # Pass the upstream status code to the client
+                    from app.shared.exceptions import GitArenaException
+                    raise GitArenaException(f"GitHub Error: {response.text}", status_code=response.status_code)
+                    
+                return response.json()
+        except httpx.RequestError as e:
+            logger.error(f"Network error when connecting to GitHub: {str(e)}")
+            raise GitHubAPIException(f"Failed to connect to GitHub: {str(e)}")
+        except Exception as e:
+            logger.error(f"Unexpected error in create_issue: {str(e)}")
+            raise e

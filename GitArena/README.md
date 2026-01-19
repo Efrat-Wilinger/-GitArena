@@ -2,9 +2,9 @@
 
 # 🏟️ GitArena
 
-### GitHub Analytics & AI Platform
+### The Ultimate Gamified GitHub Analytics & AI Platform
 
-*Empowering developers and teams with actionable insights from their GitHub repositories*
+*Level up your development workflow with AI insights, gamification, and deep analytics.*
 
 ![Status](https://img.shields.io/badge/Status-Online-success?style=for-the-badge&logo=statuspage)
 ![Stack](https://img.shields.io/badge/Stack-Fullstack-blue?style=for-the-badge&logo=react)
@@ -23,6 +23,8 @@
 - [About](#-about)
 - [Quick Start](#-quick-start)
 - [Features](#-features)
+- [Gamification](#-gamification)
+- [AI Capabilities](#-ai-capabilities)
 - [Architecture & Schema](#%EF%B8%8F-architecture--schema)
 - [Technology Stack](#-technology-stack)
 - [Project Structure](#-project-structure)
@@ -34,14 +36,9 @@
 
 ## 🎯 About
 
-**GitArena** is a comprehensive GitHub analytics platform that transforms raw repository data into meaningful insights. Built for developers and teams who want to understand their development patterns, improve code quality, and enhance collaboration.
+**GitArena** is not just an analytics tool; it's a **developer experience platform**. By combining detailed GitHub analytics with **gamification mechanics** and **AI-driven insights**, GitArena turns code contribution into an engaging, rewarding, and highly productive experience.
 
-### 🎖️ Sprint 1 - Complete ✅
-Our first sprint delivers the foundation:
-- ✅ **Story 205**: GitHub OAuth Login with JWT authentication
-- ✅ **Story 207**: Repository selection and synchronization
-- ✅ **Story 210**: Commit pulling and daily sync automation
-- ✅ **Story 239**: Docker Compose infrastructure
+Whether you're an individual developer looking to track your growth or a manager aiming to boost team velocity without burnout, GitArena provides the tools you need.
 
 ---
 
@@ -106,20 +103,26 @@ docker-compose up --build -d
 
 ## ✨ Features
 
-### 🔐 Authentication & Security
-- **GitHub OAuth Integration** - Seamless login with your GitHub account
-- **JWT Authentication** - Secure token-based authentication
-- **Role-Based Access Control** - Manage team permissions
+### 🎮 Gamification Engine
+*   **XP & Leveling System**: Earn XP for every commit, PR, and code review. Level up your profile!
+*   **Achievements & Badges**: Unlock badges like "Bug Hunter", "Code Ninja", and more.
+*   **Quests**: Complete daily and weekly quests to earn bonus rewards.
+*   **Leaderboards**: Compete with your team to see who's the top contributor.
 
-### 📊 Analytics Dashboard
-- **Repository Insights** - Track commits, PRs, and code changes
-- **Team Metrics** - Understand collaboration patterns
-- **Activity Tracking** - Monitor development velocity
-- **Visual Reports** - Beautiful charts and graphs
+### 🤖 AI-Powered Insights
+*   **Personalized Mentor**: AI evaluates your coding patterns and suggests improvements.
+*   **Code Quality Analysis**: Get automated feedback on your PRs and commits.
+*   **Smart Recommendations**: Discover areas for growth based on your historic data.
 
-### 🔄 Synchronization
-- **Automatic Sync** - Daily repository updates
-- **On-Demand Refresh** - Manual sync when needed
+### 💼 Professional Workflow
+*   **Unified "My Work" Dashboard**: View all your assigned Issues, PRs, and Reviews in one place.
+*   **Task Management**: Create and manage GitHub Issues directly from GitArena.
+*   **Bento Grid UI**: A modern, responsive, and customizable dashboard layout.
+
+### 📊 Deep Analytics
+*   **Repository Insights**: Track commit history, language distribution, and velocity.
+*   **Team Metrics**: Understand collaboration efficacy (Manager View).
+*   **DORA Metrics**: Measure deployment frequency and lead time for changes.
 
 ---
 
@@ -171,6 +174,8 @@ erDiagram
     User ||--o{ SpaceMember : has_membership
     User ||--o{ Repository : owns
     User ||--o{ AIFeedback : receives
+    User ||--o{ GamificationStats : has
+    User ||--o{ UserAchievement : earns
 
     Space ||--o{ SpaceMember : contains
     Space ||--o{ Repository : manages
@@ -182,10 +187,8 @@ erDiagram
     Repository ||--o{ Release : has
     Repository ||--o{ Deployment : has
     Repository ||--o{ AnalyticsActivity : metrics
-    Repository ||--o{ AnalyticsQuality : metrics
-    Repository ||--o{ AnalyticsCollaboration : metrics
 
-    PullRequest ||--o{ Review : has
+    GamificationStats ||--o{ UserAchievement : tracks
 
     User {
         int id
@@ -194,23 +197,11 @@ erDiagram
         string github_login
     }
 
-    Space {
+    GamificationStats {
         int id
-        string name
-        int owner_id
-    }
-
-    Repository {
-        int id
-        string name
-        boolean is_synced
-    }
-
-    Commit {
-        int id
-        string sha
-        string author_name
-        json diff_data
+        int current_xp
+        int level
+        int streak_days
     }
 ```
 
@@ -227,6 +218,7 @@ erDiagram
 - ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Latest-4169E1?logo=postgresql&logoColor=white) **PostgreSQL** - Robust database
 - ![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-ORM-red) **SQLAlchemy** - Powerful ORM
 - ![Alembic](https://img.shields.io/badge/Alembic-Migrations-orange) **Alembic** - Database migrations
+- ![OpenAI](https://img.shields.io/badge/OpenAI-API-412991?logo=openai&logoColor=white) **AI Integration** - Smart analysis
 
 </td>
 <td width="50%">
@@ -237,6 +229,7 @@ erDiagram
 - ![Vite](https://img.shields.io/badge/Vite-Latest-646CFF?logo=vite&logoColor=white) **Vite** - Lightning-fast builds
 - ![TailwindCSS](https://img.shields.io/badge/Tailwind-CSS-06B6D4?logo=tailwindcss&logoColor=white) **TailwindCSS** - Utility-first styling
 - ![Recharts](https://img.shields.io/badge/Recharts-Visualization-8884d8) **Recharts** - Data visualization
+- ![React Query](https://img.shields.io/badge/React_Query-Data_Fetching-FF4154?logo=react-query&logoColor=white) **TanStack Query** - State management
 
 </td>
 </tr>
@@ -251,7 +244,7 @@ GitArena/
 │
 ├── 🔙 backend/                    # Python FastAPI Backend
 │   ├── app/
-│   │   ├── modules/              # Domain modules (users, analytics, spaces)
+│   │   ├── modules/              # Domain modules (users, analytics, gamification, ai)
 │   │   ├── shared/               # Shared logic (DB, Auth, Models)
 │   │   └── main.py               # App entry
 │   └── tests/                    # Backend tests
@@ -259,8 +252,8 @@ GitArena/
 ├── 🎨 frontend/                   # React TypeScript Frontend
 │   ├── src/
 │   │   ├── api/                  # API clients
-│   │   ├── components/           # Reusable UI components
-│   │   └── pages/                # Route pages
+│   │   ├── components/           # Reusable UI & Bento Grid components
+│   │   └── pages/                # Route pages (Member, Manager, etc.)
 │   └── Dockerfile
 │
 ├── 🐳 docker-compose.yml         # Container orchestration
@@ -276,6 +269,12 @@ GitArena/
 |--------|----------|-------------|
 | `POST` | `/auth/github/login` | Initiate GitHub OAuth flow |
 | `GET` | `/auth/github/callback` | OAuth callback handler |
+
+### 🎮 Gamification
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/gamification/stats` | Get user XP, level, and stats |
+| `GET` | `/gamification/challenges` | Get active quests and challenges |
 
 ### 📊 Analytics
 | Method | Endpoint | Description |

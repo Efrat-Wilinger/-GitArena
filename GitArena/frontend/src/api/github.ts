@@ -320,5 +320,13 @@ export const githubApi = {
 
     deleteQuest: async (questId: string): Promise<void> => {
         await apiClient.delete(`/analytics/quests/${questId}`);
+    },
+
+    createIssue: async (repoId: number, title: string, body: string): Promise<any> => {
+        const response = await apiClient.post(`/github/repos/${repoId}/issues`, {
+            title,
+            body
+        });
+        return response.data;
     }
 };
