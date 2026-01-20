@@ -118,10 +118,10 @@ const CreateProjectPage: React.FC = () => {
                         </div>
                     ) : isLoadingRepos ? (
                         <div className="animate-pulse h-10 bg-gray-700 rounded-lg"></div>
-                    ) : availableRepositories?.length === 0 ? (
+                    ) : (repositories?.length === 0) ? (
                         <div className="text-center p-4 bg-gray-900 rounded-lg border border-gray-700">
-                            <p className="text-gray-400 text-sm mb-2">No available repositories found.</p>
-                            <p className="text-xs text-gray-500 mb-3">Sync your account to see recent repos.</p>
+                            <p className="text-gray-400 text-sm mb-2">No repositories found on GitHub.</p>
+                            <p className="text-xs text-gray-500 mb-3">Sync your account if you just added a new repo.</p>
                             <button
                                 type="button"
                                 disabled={syncMutation.isPending}
@@ -132,28 +132,54 @@ const CreateProjectPage: React.FC = () => {
                             </button>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto pr-2">
-                            {availableRepositories?.map((repo) => (
-                                <div
-                                    key={repo.id}
-                                    onClick={() => setSelectedRepoId(repo.id)}
-                                    className={`
-                    p-3 rounded-lg border cursor-pointer transition-all
-                    ${selectedRepoId === repo.id
-                                            ? 'bg-cyan-500/20 border-cyan-500 text-white'
-                                            : 'bg-gray-900 border-gray-700 text-gray-400 hover:border-gray-500'}
-                  `}
-                                >
-                                    <div className="flex items-center justify-between">
-                                        <span className="font-medium">{repo.name}</span>
-                                        {selectedRepoId === repo.id && (
-                                            <svg className="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                            </svg>
-                                        )}
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                                {availableRepositories?.map((repo) => (
+                                    <div
+                                        key={repo.id}
+                                        onClick={() => setSelectedRepoId(repo.id)}
+                                        className={`
+                                            p-3 rounded-lg border cursor-pointer transition-all
+                                            ${selectedRepoId === repo.id
+                                                ? 'bg-cyan-500/20 border-cyan-500 text-white'
+                                                : 'bg-gray-900 border-gray-700 text-gray-400 hover:border-gray-500'}
+                                        `}
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            <span className="font-medium">{repo.name}</span>
+                                            {selectedRepoId === repo.id && (
+                                                <svg className="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                </svg>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Show Linked Repositories */}
+                            {repositories && repositories.length > availableRepositories?.length! && (
+                                <div className="mt-4 pt-4 border-t border-gray-700">
+                                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Already Project-Linked</p>
+                                    <div className="grid grid-cols-1 gap-2 opacity-60">
+                                        {repositories.filter(repo => !availableRepositories?.some(a => a.id === repo.id)).map(repo => (
+                                            <div key={repo.id} className="p-3 rounded-lg border border-gray-800 bg-black/20 flex items-center justify-between text-gray-500 text-sm">
+                                                <span>{repo.name}</span>
+                                                <span className="text-[10px] bg-gray-800 px-2 py-0.5 rounded uppercase">In Project</span>
+                                            </div>
+                                        ))}
                                     </div>
                                 </div>
-                            ))}
+                            )}
+
+                            <button
+                                type="button"
+                                disabled={syncMutation.isPending}
+                                onClick={() => syncMutation.mutate()}
+                                className="w-full py-2 text-xs text-cyan-400 hover:text-cyan-300 transition border border-dashed border-cyan-500/30 rounded-lg mt-2"
+                            >
+                                {syncMutation.isPending ? 'Refreshing...' : 'Not seeing a repo? Refresh GitHub data'}
+                            </button>
                         </div>
                     )}
                 </div>
