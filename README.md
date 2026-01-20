@@ -314,6 +314,49 @@ npm run dev
 
 ---
 
+## 🧪 Testing
+
+We use **Playwright** for End-to-End (E2E) system testing to ensure the platform works as expected.
+
+### Prerequisites
+*   Ensure the **Backend** (`localhost:8000`) and **Frontend** (`localhost:3000`) are running (via Docker or locally).
+
+### 1️⃣ Setup Test Environment
+Open a new terminal (keep your servers running!) and navigate to the project root:
+
+```bash
+# Activate your backend virtual environment
+# Windows:
+backend\venv\Scripts\activate
+# Mac/Linux:
+source backend/venv/bin/activate
+
+# Install Test Dependencies
+pip install -r tests/requirements.txt
+
+# Install Playwright Browsers (Required for first run)
+playwright install
+```
+
+### 2️⃣ Run System Tests
+Run the full system test suite. You can run it in "headed" mode to see the browser interactions:
+
+```bash
+# Run visually (headed)
+pytest tests/test_system_playwright.py --headed
+
+# Run in background (headless)
+pytest tests/test_system_playwright.py
+```
+
+### 3️⃣ Test Scenarios Covered
+*   **Manager Flow**: Login, Project Selection, Dashboard Analytics, Sync Data.
+*   **Member Flow**: Login, Restricted Access Verification, Achievements & Stats logic.
+*   **System Logic**: Leaderboard placeholders, Numeric validation of XP/Levels.
+*   **Projects**: Full creation flow (Form fill, Repo selection, Submission).
+
+---
+
 ## 🤝 Contributing
 
 We welcome contributions!

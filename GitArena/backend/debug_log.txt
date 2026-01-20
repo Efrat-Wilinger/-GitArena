@@ -268,3 +268,13 @@ Total Commits: 48
 ProjectID: 1
 Repo IDs: [1]
 Total Commits: 48
+
+--- Debug Request 2026-01-20 20:46:18.248875 ---
+ProjectID: 14
+Repo IDs: [10]
+Total Commits: 1
+
+--- Debug Request 2026-01-20 20:46:22.422979 ---
+ProjectID: 14
+Repo IDs: [10]
+Total Commits: 1
