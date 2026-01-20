@@ -24,28 +24,35 @@ async def background_sync_worker(user_id: int, access_token: str):
         logger.info(f"BACKGROUND_SYNC_START: user_id={user_id}")
         gh_service = GitHubService(db)
         
-        # 1. Sync Repositories
+        # 1. Sync Repositories (List of repos)
         logger.info("BACKGROUND_SYNC: Fetching repositories...")
         repos = await gh_service.sync_repositories(user_id, access_token)
         logger.info(f"BACKGROUND_SYNC: Synced {len(repos)} repositories")
         
-        # 2. Sync Commits for top 5 recently updated repos
-        # Sort repos by updated_at (if available) or just take first 5
-        # Repos returned by sync_repositories are RepositoryResponse objects
-        sorted_repos = sorted(repos, key=lambda r: r.updated_at or r.created_at, reverse=True)
-        
-        for repo in sorted_repos[:5]:
-            try:
-                logger.info(f"BACKGROUND_SYNC: Syncing commits for repo {repo.name}")
-                await gh_service.sync_commits(repo.id, access_token)
-                # optionally sync PRs too?
-                # await gh_service.sync_pull_requests(repo.id, access_token)
-            except Exception as e:
-                logger.error(f"BACKGROUND_SYNC_ERROR: Repo {repo.name} - {str(e)}")
+        # 2. Sync Detaiied Data (Commits, PRs, etc.) for ALL repos
+        # We process in batches of 3 to avoid overwhelming GitHub API / local resources
+        batch_size = 3
+        for i in range(0, len(repos), batch_size):
+            batch = repos[i:i+batch_size]
+            sync_tasks = []
+            for repo in batch:
+                logger.info(f"BACKGROUND_SYNC: Queueing deep sync for repo {repo.name}")
+                # We create individual sync tasks for each repo
+                async def sync_repo_full(r=repo):
+                    try:
+                        await gh_service.sync_commits(r.id, access_token)
+                        await gh_service.sync_pull_requests(r.id, access_token)
+                        await gh_service.sync_issues(r.id, access_token)
+                        await gh_service.sync_activities(r.id, access_token)
+                    except Exception as e:
+                        logger.error(f"BACKGROUND_SYNC_REPO_ERROR: {r.name} - {str(e)}")
+                
+                sync_tasks.append(sync_repo_full())
+            
+            # Run batch concurrently
+            await asyncio.gather(*sync_tasks)
                 
         logger.info("BACKGROUND_SYNC_COMPLETE")
-    except Exception as e:
-        logger.error(f"BACKGROUND_SYNC_FATAL_ERROR: {str(e)}")
     finally:
         db.close()
 
@@ -125,7 +132,13 @@ async def github_login(code: str, background_tasks: BackgroundTasks, db: Session
             )
             logger.info("JWT_CREATED_SUCCESSFULLY")
 
-            # Trigger background sync
+            # Trigger immediate repo sync to ensure 'Create Project' works right away
+            logger.info("IMMEDIATE_SYNC: Syncing repositories...")
+            gh_service = GitHubService(db)
+            await gh_service.sync_repositories(user.id, access_token)
+            logger.info("IMMEDIATE_SYNC: Repositories synced successfully")
+
+            # Trigger background sync for heavier data (commits, etc)
             background_tasks.add_task(background_sync_worker, user.id, access_token)
             logger.info("BACKGROUND_SYNC_SCHEDULED")
             

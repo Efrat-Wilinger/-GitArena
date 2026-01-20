@@ -44,33 +44,37 @@ class GitHubService:
         for gh_repo in github_repos:
             existing_repo = self.repository.get_repository_by_github_id(str(gh_repo["id"]))
             
-            repo_data = RepositoryCreate(
-                github_id=str(gh_repo["id"]),
-                name=gh_repo["name"],
-                full_name=gh_repo["full_name"],
-                description=gh_repo.get("description"),
-                url=gh_repo["html_url"],
-                language=gh_repo.get("language"),
-                stargazers_count=gh_repo.get("stargazers_count", 0),
-                forks_count=gh_repo.get("forks_count", 0),
-                user_id=user_id
-            )
-            
-            if existing_repo:
-                repo = self.repository.update_repository(
-                    existing_repo,
-                    name=repo_data.name,
-                    full_name=repo_data.full_name,
-                    description=repo_data.description,
-                    url=repo_data.url,
-                    language=repo_data.language,
-                    stargazers_count=repo_data.stargazers_count,
-                    forks_count=repo_data.forks_count
+            try:
+                repo_data = RepositoryCreate(
+                    github_id=str(gh_repo["id"]),
+                    name=gh_repo["name"],
+                    full_name=gh_repo["full_name"],
+                    description=gh_repo.get("description"),
+                    url=gh_repo["html_url"],
+                    language=gh_repo.get("language"),
+                    stargazers_count=gh_repo.get("stargazers_count", 0),
+                    forks_count=gh_repo.get("forks_count", 0),
+                    user_id=user_id
                 )
-            else:
-                repo = self.repository.create_repository(repo_data)
-            
-            synced_repos.append(RepositoryResponse.model_validate(repo))
+                
+                if existing_repo:
+                    repo = self.repository.update_repository(
+                        existing_repo,
+                        name=repo_data.name,
+                        full_name=repo_data.full_name,
+                        description=repo_data.description,
+                        url=repo_data.url,
+                        language=repo_data.language,
+                        stargazers_count=repo_data.stargazers_count,
+                        forks_count=repo_data.forks_count
+                    )
+                else:
+                    repo = self.repository.create_repository(repo_data)
+                
+                synced_repos.append(RepositoryResponse.model_validate(repo))
+            except Exception as e:
+                logger.error(f"Failed to sync repository {gh_repo.get('full_name', 'unknown')}: {str(e)}")
+                continue
         
         return synced_repos
     

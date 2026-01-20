@@ -19,6 +19,7 @@ class SpaceResponse(SpaceBase):
     id: int
     owner_id: Optional[int] = None
     created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
     members_count: int = 0
     repositories: List[RepositoryResponse] = []
     

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { githubApi, Repository } from '../api/github';
@@ -11,7 +11,7 @@ const CreateProjectPage: React.FC = () => {
     const [description, setDescription] = useState('');
     const [selectedRepoId, setSelectedRepoId] = useState<number | null>(null);
 
-    const { data: repositories, isLoading: isLoadingRepos } = useQuery<Repository[]>({
+    const { data: repositories, isLoading: isLoadingRepos, isError: isErrorRepos, refetch: refetchRepos } = useQuery<Repository[]>({
         queryKey: ['repositories'],
         queryFn: () => githubApi.getRepositories(false),
     });
@@ -31,6 +31,20 @@ const CreateProjectPage: React.FC = () => {
             space.repositories?.some((r: any) => r.github_id === String(repo.id) || r.id === repo.id)
         );
         return !isAlreadyImported;
+    });
+
+    // Auto-sync on mount if no unlinked repositories are found
+    useEffect(() => {
+        if (repositories && availableRepositories?.length === 0) {
+            syncMutation.mutate();
+        }
+    }, [repositories?.length, availableRepositories?.length]);
+
+    const syncMutation = useMutation({
+        mutationFn: () => githubApi.getRepositories(true),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['repositories'] });
+        },
     });
 
     const createSpaceMutation = useMutation({
@@ -92,8 +106,31 @@ const CreateProjectPage: React.FC = () => {
                         Select a GitHub repository. Contributors will be automatically invited as team members.
                     </p>
 
-                    {isLoadingRepos ? (
+                    {isErrorRepos ? (
+                        <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-center">
+                            <p className="text-red-400 text-sm mb-2">Failed to load repositories</p>
+                            <button
+                                onClick={() => refetchRepos()}
+                                className="text-xs bg-red-500/20 hover:bg-red-500/30 text-red-300 px-3 py-1 rounded transition"
+                            >
+                                Retry
+                            </button>
+                        </div>
+                    ) : isLoadingRepos ? (
                         <div className="animate-pulse h-10 bg-gray-700 rounded-lg"></div>
+                    ) : availableRepositories?.length === 0 ? (
+                        <div className="text-center p-4 bg-gray-900 rounded-lg border border-gray-700">
+                            <p className="text-gray-400 text-sm mb-2">No available repositories found.</p>
+                            <p className="text-xs text-gray-500 mb-3">Sync your account to see recent repos.</p>
+                            <button
+                                type="button"
+                                disabled={syncMutation.isPending}
+                                onClick={() => syncMutation.mutate()}
+                                className="text-cyan-400 hover:text-cyan-300 text-xs disabled:opacity-50"
+                            >
+                                {syncMutation.isPending ? 'Syncing...' : 'Sync from GitHub'}
+                            </button>
+                        </div>
                     ) : (
                         <div className="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto pr-2">
                             {availableRepositories?.map((repo) => (

@@ -20,18 +20,15 @@ class SpaceRepository:
 
     def get_user_spaces(self, user_id: int) -> List[Space]:
         # Get spaces owned by user OR where user is a member
-        # Use simple separate queries for now, but with eager loading to prevent DetachedInstanceError during serialization
-        owned_spaces = self.db.query(Space).options(
+        # Using a single query with outerjoin for efficiency and reliability
+        query = self.db.query(Space).outerjoin(SpaceMember).options(
             joinedload(Space.members),
             joinedload(Space.repositories)
-        ).filter(Space.owner_id == user_id).all()
+        ).filter(
+            (Space.owner_id == user_id) | (SpaceMember.user_id == user_id)
+        )
         
-        member_spaces = self.db.query(Space).join(SpaceMember).options(
-            joinedload(Space.members),
-            joinedload(Space.repositories)
-        ).filter(SpaceMember.user_id == user_id).all()
-        
-        return list(set(owned_spaces + member_spaces))
+        return query.distinct().all()
 
     def add_member(self, space_id: int, user_id: int, role: str = "viewer") -> SpaceMember:
         member = SpaceMember(space_id=space_id, user_id=user_id, role=role)
