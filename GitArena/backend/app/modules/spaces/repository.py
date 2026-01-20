@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from app.shared.models import Space, SpaceMember, User
 from app.modules.spaces.dto import SpaceCreate
 from typing import List
@@ -20,8 +20,17 @@ class SpaceRepository:
 
     def get_user_spaces(self, user_id: int) -> List[Space]:
         # Get spaces owned by user OR where user is a member
-        owned_spaces = self.db.query(Space).filter(Space.owner_id == user_id).all()
-        member_spaces = self.db.query(Space).join(SpaceMember).filter(SpaceMember.user_id == user_id).all()
+        # Use simple separate queries for now, but with eager loading to prevent DetachedInstanceError during serialization
+        owned_spaces = self.db.query(Space).options(
+            joinedload(Space.members),
+            joinedload(Space.repositories)
+        ).filter(Space.owner_id == user_id).all()
+        
+        member_spaces = self.db.query(Space).join(SpaceMember).options(
+            joinedload(Space.members),
+            joinedload(Space.repositories)
+        ).filter(SpaceMember.user_id == user_id).all()
+        
         return list(set(owned_spaces + member_spaces))
 
     def add_member(self, space_id: int, user_id: int, role: str = "viewer") -> SpaceMember:
@@ -51,3 +60,9 @@ class SpaceRepository:
         from app.shared.models import Repository
         return self.db.query(Space).join(Repository).filter(Repository.github_id == str(github_repo_id)).first()
 
+
+    def is_member(self, space_id: int, user_id: int) -> bool:
+        return self.db.query(SpaceMember).filter(
+            SpaceMember.space_id == space_id,
+            SpaceMember.user_id == user_id
+        ).first() is not None

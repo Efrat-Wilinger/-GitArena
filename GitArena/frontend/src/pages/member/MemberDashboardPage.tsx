@@ -14,7 +14,7 @@ import MyTasksWidget from '../../components/MyTasksWidget';
 import { QuestsWidget } from '../../components/QuestsWidget';
 
 const MemberDashboardPage: React.FC = () => {
-    const { currentProjectId: contextProjectId } = useProject();
+    const { currentProjectId: contextProjectId, currentProjectName } = useProject();
     const currentProjectId = contextProjectId ?? undefined;
 
     const { data: user, isLoading, error } = useQuery<User>({
@@ -127,7 +127,7 @@ const MemberDashboardPage: React.FC = () => {
                 <div>
                     <div className="flex items-center gap-3 mb-2">
                         <h1 className="text-3xl font-bold tracking-tight text-white">
-                            Developer Hub
+                            {currentProjectName || 'Project'} | Developer Hub
                         </h1>
                         <div className="px-3 py-1 rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 text-white text-xs font-bold flex items-center gap-1">
                             <span>👤</span> Member
@@ -274,7 +274,7 @@ const MemberDashboardPage: React.FC = () => {
                     <AchievementsSection achievements={gamificationStats?.achievements} />
                 </div>
             </div>
-        </div>
+        </div >
     );
 };
 

@@ -25,7 +25,7 @@ import LeaderboardWidget from '../components/LeaderboardWidget';
 import MyTasksWidget from '../components/MyTasksWidget';
 
 const ProfilePage: React.FC = () => {
-    const { currentProjectId: contextProjectId } = useProject();
+    const { currentProjectId: contextProjectId, currentProjectName } = useProject();
     const currentProjectId = contextProjectId ?? undefined;
 
     const { data: user, isLoading, error } = useQuery<User>({
@@ -223,7 +223,7 @@ const ProfilePage: React.FC = () => {
                 <div>
                     <div className="flex items-center gap-3 mb-2">
                         <h1 className="text-3xl font-bold tracking-tight text-white">
-                            Command Center
+                            {currentProjectName || 'Project'} | Command Center
                         </h1>
                         <div className="px-3 py-1 rounded-full bg-gradient-orange text-white text-xs font-bold flex items-center gap-1">
                             <span>👑</span> Manager

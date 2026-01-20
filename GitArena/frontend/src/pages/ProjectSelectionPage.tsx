@@ -22,7 +22,7 @@ const ProjectSelectionPage: React.FC = () => {
         queryFn: authApi.getCurrentUser,
     });
 
-    const { data: spaces, isLoading } = useQuery<Space[]>({
+    const { data: spaces, isLoading, error, isError } = useQuery<Space[]>({
         queryKey: ['spaces'],
         queryFn: async () => {
             const response = await apiClient.get('/spaces/');
@@ -82,6 +82,18 @@ const ProjectSelectionPage: React.FC = () => {
             <div className="min-h-screen flex items-center justify-center bg-[#0a0a0a]">
                 <div className="relative">
                     <div className="w-16 h-16 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin"></div>
+                </div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-[#0a0a0a] text-red-500">
+                <div className="text-center">
+                    <h2 className="text-2xl font-bold mb-2">Error Loading Projects</h2>
+                    <p>{(error as any).message}</p>
+                    <button onClick={() => window.location.reload()} className="mt-4 px-4 py-2 bg-red-500/10 border border-red-500 rounded hover:bg-red-500/20 transition">Retry</button>
                 </div>
             </div>
         );

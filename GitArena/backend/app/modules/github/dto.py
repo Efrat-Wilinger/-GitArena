@@ -4,10 +4,10 @@ from datetime import datetime
 
 
 class RepositoryBase(BaseModel):
-    name: str
-    full_name: str
+    name: Optional[str] = None
+    full_name: Optional[str] = None
     description: Optional[str] = None
-    url: str
+    url: Optional[str] = None
     language: Optional[str] = None
     stargazers_count: int = 0
     forks_count: int = 0
@@ -20,8 +20,8 @@ class RepositoryCreate(RepositoryBase):
 
 class RepositoryResponse(RepositoryBase):
     id: int
-    github_id: str
-    is_synced: bool
+    github_id: Optional[str] = None
+    is_synced: bool = False
     last_synced_at: Optional[datetime] = None
     created_at: Optional[datetime] = None
     name: Optional[str] = None

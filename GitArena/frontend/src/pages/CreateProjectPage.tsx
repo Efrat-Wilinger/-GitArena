@@ -38,9 +38,9 @@ const CreateProjectPage: React.FC = () => {
             const response = await apiClient.post('/spaces/', data);
             return response.data;
         },
-        onSuccess: () => {
+        onSuccess: (data) => {
             queryClient.invalidateQueries({ queryKey: ['spaces'] });
-            navigate('/projects');
+            navigate(`/projects/${data.id}`);
         },
     });
 

@@ -50,6 +50,10 @@ class Space(Base):
     repositories = relationship("Repository", back_populates="space")
     members = relationship("SpaceMember", back_populates="space")
 
+    @property
+    def members_count(self):
+        return len(self.members)
+
 
 class SpaceMember(Base):
     __tablename__ = "space_members"

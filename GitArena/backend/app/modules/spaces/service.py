@@ -55,6 +55,11 @@ class SpaceService:
             # Add to Space
             self.repository.add_member(space.id, user.id, role="viewer")
             
+        # 5. Add Owner as Member (Manager) - Explicitly add owner to space_members for consistency
+        # check if owner is already added (e.g. if they were in contributors list and not skipped correctly? Logic above skips owner)
+        if not self.repository.is_member(space.id, owner_id):
+            self.repository.add_member(space.id, owner_id, role="manager")
+            
         return SpaceResponse.model_validate(space)
 
     async def join_or_create_space(self, space_data: SpaceCreate, user_id: int, access_token: str) -> dict:

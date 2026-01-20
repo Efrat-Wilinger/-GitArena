@@ -17,8 +17,8 @@ from app.modules.github.dto import RepositoryResponse
 
 class SpaceResponse(SpaceBase):
     id: int
-    owner_id: int
-    created_at: datetime
+    owner_id: Optional[int] = None
+    created_at: Optional[datetime] = None
     members_count: int = 0
     repositories: List[RepositoryResponse] = []
     
