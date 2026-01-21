@@ -49,7 +49,10 @@ Whether you're an individual developer looking to track your growth or a manager
 *   [Node.js 20+](https://nodejs.org/) (for local dev without Docker)
 *   GitHub OAuth App Credentials 🔑
 
-### 1️⃣ Setup GitHub OAuth App
+### 1️⃣ Setup GitHub OAuth App (Optional)
+> [!NOTE]
+> This step is only necessary if you don't already have a configured `.env` file with GitHub secrets.
+
 1. Navigate to [GitHub Developer Settings](https://github.com/settings/developers)
 2. Click **"New OAuth App"**
 3. Fill in the details:
@@ -67,16 +70,22 @@ cd GitArena
 ```
 
 ### 3️⃣ Configure Environment
-You need to set up the secrets for both Frontend and Backend.
+You need to set up the environment variables for the Root directory, Backend, and Frontend.
 
-**Backend (`/backend/.env`):**
+**Root Configuration (`/.env`):**
+```bash
+cp .env.example .env
+# Contains shared secrets and Docker orchestration config
+```
+
+**Backend Server (`/backend/.env`):**
 ```bash
 cd backend
 cp .env.example .env
 # Edit .env with your DATABASE_URL and GITHUB credentials
 ```
 
-**Frontend (`/frontend/.env`):**
+**Frontend App (`/frontend/.env`):**
 ```bash
 cd ../frontend
 cp .env.example .env
