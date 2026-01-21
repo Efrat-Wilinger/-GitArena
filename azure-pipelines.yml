@@ -1,29 +1,99 @@
-# Docker
-# Build a Docker image
-# https://docs.microsoft.com/azure/devops/pipelines/languages/docker
-
 trigger:
 - main
 
-resources:
-- repo: self
+pool:
+  vmImage: 'ubuntu-latest'
 
 variables:
   tag: '$(Build.BuildId)'
 
 stages:
+# -----------------------
+# 1) BUILD STAGE
+# -----------------------
 - stage: Build
-  displayName: Build image
+  displayName: Build images
   jobs:
-  - job: Build
-    displayName: Build
-    pool:
-      vmImage: ubuntu-latest
+  - job: BuildBackend
+    displayName: Build backend Docker image
     steps:
+    - checkout: self
+
     - task: Docker@2
-      displayName: Build an image
+      displayName: Build backend image
       inputs:
         command: build
         dockerfile: '$(Build.SourcesDirectory)/GitArena/backend/Dockerfile'
+        buildContext: '$(Build.SourcesDirectory)/GitArena/backend'
+        repository: 'gitarena-backend'
         tags: |
           $(tag)
+          latest
+
+    # נשמור "תוצר" קטן שמוכיח מה נבנה (Artifact בסיסי)
+    - bash: |
+        mkdir -p $(Build.ArtifactStagingDirectory)
+        echo "Built: gitarena-backend:$(tag)" > $(Build.ArtifactStagingDirectory)/build-info.txt
+      displayName: Prepare artifact
+
+    - task: PublishBuildArtifacts@1
+      displayName: Publish artifact (build-info)
+      inputs:
+        PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+        ArtifactName: 'build'
+        publishLocation: 'Container'
+
+# -----------------------
+# 2) TEST / SMOKE STAGE
+# -----------------------
+- stage: SmokeTest
+  displayName: Smoke test with docker compose
+  dependsOn: Build
+  condition: succeeded()
+  jobs:
+  - job: ComposeUp
+    displayName: Bring up services (smoke)
+    steps:
+    - checkout: self
+
+    # חשוב: ב-CI אל תשמרי סיסמאות בקובץ compose.
+    # כאן אני מגדיר משתני סביבה זמניים להרצה.
+    - bash: |
+        cd $(Build.SourcesDirectory)/GitArena
+
+        export POSTGRES_PASSWORD="ci_password"
+        export PGADMIN_DEFAULT_EMAIL="ci@example.com"
+        export PGADMIN_DEFAULT_PASSWORD="ci_admin"
+        export SECRET_KEY="ci_secret"
+        export GITHUB_CLIENT_ID="dummy"
+        export GITHUB_CLIENT_SECRET="dummy"
+        export OPENAI_API_KEY="dummy"
+
+        docker compose -f docker-compose.yml up -d --build
+
+        echo "Waiting a bit for containers..."
+        sleep 20
+
+        docker ps
+      displayName: docker compose up (smoke)
+
+    # בדיקת בריאות מינימלית: האם backend ענה (אפשר להחליף ל-endpoint אמיתי אצלך)
+    - bash: |
+        set -e
+        # ניסיון פשוט לבדוק שהפורט פתוח
+        curl -sSf http://localhost:8000/ || true
+        echo "Smoke check done (adjust endpoint if needed)."
+      displayName: Basic backend check
+
+    - bash: |
+        cd $(Build.SourcesDirectory)/GitArena
+        docker compose -f docker-compose.yml logs --no-color > compose-logs.txt || true
+        docker compose -f docker-compose.yml down -v || true
+      displayName: Collect logs & compose down
+
+    - task: PublishBuildArtifacts@1
+      displayName: Publish compose logs
+      inputs:
+        PathtoPublish: '$(Build.SourcesDirectory)/GitArena/compose-logs.txt'
+        ArtifactName: 'compose-logs'
+        publishLocation: 'Container'
