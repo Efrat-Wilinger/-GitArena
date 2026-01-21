@@ -17,15 +17,24 @@ branch_labels = None
 depends_on = None
 
 def upgrade() -> None:
-    # Add missing columns to repositories table
-    with op.batch_alter_table('repositories') as batch_op:
-        batch_op.add_column(sa.Column('language', sa.String(), nullable=True))
-        batch_op.add_column(sa.Column('stargazers_count', sa.Integer(), nullable=True, server_default='0'))
-        batch_op.add_column(sa.Column('forks_count', sa.Integer(), nullable=True, server_default='0'))
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
     
-    # Add missing columns to commits table
-    with op.batch_alter_table('commits') as batch_op:
-        batch_op.add_column(sa.Column('diff_data', sa.JSON(), nullable=True))
+    # Check repositories table
+    repo_cols = [c['name'] for c in inspector.get_columns('repositories')]
+    with op.batch_alter_table('repositories') as batch_op:
+        if 'language' not in repo_cols:
+            batch_op.add_column(sa.Column('language', sa.String(), nullable=True))
+        if 'stargazers_count' not in repo_cols:
+            batch_op.add_column(sa.Column('stargazers_count', sa.Integer(), nullable=True, server_default='0'))
+        if 'forks_count' not in repo_cols:
+            batch_op.add_column(sa.Column('forks_count', sa.Integer(), nullable=True, server_default='0'))
+    
+    # Check commits table
+    commit_cols = [c['name'] for c in inspector.get_columns('commits')]
+    if 'diff_data' not in commit_cols:
+        with op.batch_alter_table('commits') as batch_op:
+            batch_op.add_column(sa.Column('diff_data', sa.JSON(), nullable=True))
 
 def downgrade() -> None:
     with op.batch_alter_table('commits') as batch_op:
